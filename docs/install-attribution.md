@@ -12,7 +12,7 @@ The Worker only transforms guides containing `<!-- openmotion-utm-source-support
 
 1. Publish a release whose generated `install.md` includes the marker and whose installer supports `--utm-source`.
 2. Deploy the Worker with `wrangler deploy --config workers/install-guide/wrangler.toml` using the existing `open-design-releases` R2 binding.
-3. Verify the test URL `https://open-design.powerformer.net/motion/install.md?utm_source=producthunt`; confirm the setup rows contain `--utm-source producthunt` and the direct URL remains unchanged.
+3. Verify the configured test Worker route with `?utm_source=producthunt`; confirm the setup rows contain `--utm-source producthunt` and the direct URL remains unchanged.
 4. Add the production route for `open-design.ai/motion/install.md` only after the stable guide is published and the test route passes. The R2 release paths remain available independently.
 
 ## Measurement

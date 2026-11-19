@@ -12,8 +12,8 @@ test('install Worker keeps direct guides unchanged and annotates only supported 
     assert.equal(key, 'open-motion/dev/install.md');
     return { body: new Response(guide).body!, text: async () => guide, writeHttpMetadata() {} };
   } } };
-  const direct = await worker.fetch(new Request('https://open-design.powerformer.net/motion/install.md'), env);
-  const attributed = await worker.fetch(new Request('https://open-design.powerformer.net/motion/install.md?utm_source=producthunt'), env);
+  const direct = await worker.fetch(new Request('https://releases.open-design.ai/open-motion/dev/install.md'), env);
+  const attributed = await worker.fetch(new Request('https://releases.open-design.ai/open-motion/dev/install.md?utm_source=producthunt'), env);
   assert.equal(direct.headers.get('cache-control'), 'no-store');
   assert.equal(attributed.headers.get('cache-control'), 'no-store');
   assert.equal(await direct.text(), guide);
