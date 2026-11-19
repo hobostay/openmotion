@@ -166,6 +166,10 @@ export async function setup(options) {
       await writeJSON(stateFile, state); wroteState = true;
       await plan.register();
       try {
+        const { recordInstallationStart } = await import(pathToFileURL(path.join(appRoot, 'shared/install-attribution.ts')).href);
+        await recordInstallationStart(dataDirectory, plan.host, options.utmSource);
+      } catch (error) { console.error('OpenMotion: installation attribution unavailable: ' + error.message); }
+      try {
         const { recordInstallation } = await import(pathToFileURL(path.join(appRoot, 'shared/install-attribution.ts')).href);
         await recordInstallation(dataDirectory, plan.host, options.utmSource);
       } catch (error) { console.error('OpenMotion: installation attribution unavailable: ' + error.message); }
