@@ -13,6 +13,7 @@ import { zip } from '../scripts/zip.mjs';
 import { pluginRoot, nativeProjectConfig } from '../hyperframes.ts';
 import { WorkspaceStore } from '../workspace.ts';
 import { reviewComments } from '../review-comments.ts';
+import { renderNext } from '../server.ts';
 
 const html = '<!doctype html><html><head><meta charset="utf-8"></head><body><div data-composition-id="main" data-start="0" data-duration="1" data-width="320" data-height="180">Editable</div><script>window.__timelines = {};</script></body></html>';
 const bundle = () => zip([
@@ -185,3 +186,39 @@ test('trash, restore and permanent delete keep active fallback and stable receip
   await assert.rejects(manageProject(store, { action: 'delete', projectId: 'project', requestId: 'delete-active' }), /PROJECT_DELETE_REQUIRES_TRASH/);
   await assert.rejects(manageProject(store, { action: 'trash', projectId: 'project', requestId: 'trash-last' }), /PROJECT_DELETE_LAST_ACTIVE/);
 }, false));
+
+test('renderNext cancels queued exports and reconciles interrupted exports after a project is trashed or deleted', () => fixture(async store => {
+  const first = (await importProjects(store, 'export-trash-import', bundle(), pluginRoot)).projects[0].projectId;
+  const firstExport = await store.forProject(first).requestExport((await store.forProject(first).get()).revision);
+  await manageProject(store, { action: 'trash', projectId: first, requestId: 'trash-with-pending-export' });
+
+  await renderNext(store, pluginRoot);
+  assert.equal((await store.job(firstExport.id))?.state, 'cancelled');
+  await assert.rejects(access(store.snapshotDirectory(firstExport.id)), /ENOENT/);
+  // Subsequent worker ticks on the terminal job of a trashed project must not throw.
+  await renderNext(store, pluginRoot);
+
+  // Another active project can immediately queue an export without hitting EXPORT_BUSY.
+  const activeExport = await store.forProject('project').requestExport((await store.forProject('project').get()).revision);
+  assert.equal(activeExport.state, 'pending');
+  await store.saveJob({ ...(await store.job(activeExport.id))!, state: 'cancelled', stage: 'cancelled', observedOutcome: 'cancelled', terminalAt: Date.now() });
+
+  // An interrupted running export for a permanently deleted project must reconcile instead of wedging the queue.
+  const second = (await importProjects(store, 'export-delete-import', bundle(), pluginRoot)).projects[0].projectId;
+  const secondExport = await store.forProject(second).requestExport((await store.forProject(second).get()).revision);
+  const claimed = await store.claimExport();
+  assert.equal(claimed?.id, secondExport.id);
+  await store.saveJob({ ...claimed!, stage: 'rendering', workerPid: undefined });
+  await manageProject(store, { action: 'trash', projectId: second, requestId: 'trash-before-delete-export' });
+  await manageProject(store, { action: 'delete', projectId: second, requestId: 'delete-with-interrupted-export' });
+
+  await renderNext(store, pluginRoot);
+  const reconciled = await store.job(secondExport.id);
+  assert.equal(reconciled?.state, 'failed');
+  assert.equal(reconciled?.failureCode, 'EXPORT_WORKER_INTERRUPTED');
+  // Subsequent worker ticks on the terminal job of a deleted project must not throw.
+  await renderNext(store, pluginRoot);
+
+  const followUp = await store.forProject('project').requestExport((await store.forProject('project').get()).revision);
+  assert.equal(followUp.state, 'pending');
+}));

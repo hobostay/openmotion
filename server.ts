@@ -124,7 +124,6 @@ export async function trackExportTerminal(store: WorkspaceStore, final: ExportJo
 export async function renderNext(store: WorkspaceStore, runtimeRoot: string, tracking?: OmTracking) {
   await emitQueueTelemetry(store, tracking);
   const pending = await store.job();
-  if (pending?.projectId) store = store.forProject(pending.projectId);
   const key = store.directory;
   // The tick that renders a job also owns its record, so no tick reconciles work still running in this process.
   if (working.has(key)) return;
@@ -135,6 +134,14 @@ export async function renderNext(store: WorkspaceStore, runtimeRoot: string, tra
   try {
     // A queued job whose deadline passed, or a claimed job whose worker vanished, is closed before claiming.
     if (pending && interruptedExport(pending)) await trackInterruptedExport(store, pending, tracking);
+    else if (pending?.state === 'pending' && pending.projectId) {
+      // Cancel queued exports whose project was trashed or deleted so they cannot block other active projects.
+      const project = store.projectCatalog().projects.find(item => item.id === pending.projectId);
+      if (!project || project.trashedAt) {
+        await cancelExport(store, pending.projectId, pending.id, tracking);
+        return;
+      }
+    }
     job = await store.claimExport();
     if (!job) return;
     control = new AbortController(); runningExports.set(job.id, control);
