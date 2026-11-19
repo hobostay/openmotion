@@ -198,7 +198,11 @@ test('PR CI has no publication credentials; publication requires a separate manu
   assert(workflow.includes('workflow_dispatch:') && !workflow.includes('pull_request:') && !workflow.includes('push:'));
   assert(!workflow.includes('environment:'), 'No independent approval environment is enabled');
   assert(!workflow.includes('accepted:') && !workflow.includes('MOTION_ACCEPTED'));
-  assert(!workflow.split('  snapshot:\n')[0].includes('secrets.'));
+  const [readOnly, remainder] = workflow.split('      - name: Prepare immutable template resources for publication\n');
+  assert(!readOnly!.includes('secrets.'));
+  const [stage, afterStage] = remainder!.split('\n      - uses: actions/upload-artifact@');
+  assert(stage!.includes("inputs.mode == 'publish'") && stage!.includes('CLOUDFLARE_R2_RELEASES_SK'));
+  assert(!afterStage!.split('  snapshot:\n')[0]!.includes('secrets.'));
 });
 
 test('moving guides use channel tags while immutable guides and current version remain exact', async t => {

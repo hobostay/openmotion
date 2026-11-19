@@ -34,11 +34,31 @@ test('handbook scenarios compose public tools and keep their copyable instructio
   const names = new Set(phase1Tools.map(tool => tool.name));
   for (const scenario of mcpScenarios) {
     assert.ok(scenario.title && scenario.description);
+    if (scenario.id === 'review-comments') assert.equal(scenario.prompt, reviewCommentsPrompt());
+    if (scenario.id === 'asset-naming') assert.equal(scenario.prompt, assetNamingInstruction);
     for (const tool of scenario.tools) {
       assert.ok(names.has(tool), tool);
-      assert.ok((scenario.id === 'review-comments' ? reviewCommentsPrompt() : scenario.id === 'asset-naming' ? assetNamingInstruction : platformExportExample('en')).includes(tool), tool);
+      assert.ok((scenario.id === 'platform-export' ? platformExportExample('en') : scenario.prompt).includes(tool), tool);
     }
   }
+});
+
+test('guide-draft handoff is discoverable and translated with its actual recovery boundaries', () => {
+  const scenario = mcpScenarios.find(item => item.id === 'template-guide')!;
+  assert.match(scenario.prompt, /guideDraft.*stable requestId/);
+  assert.match(scenario.prompt, /applied=false.*new requestId.*unknown outcomes/);
+  assert.match(scenario.prompt, /not a reconstruction of the reference film/);
+  const translations = JSON.parse(readFileSync(new URL('../studio/src/i18n/mcp-ui.json', import.meta.url), 'utf8'));
+  for (const [locale, values] of Object.entries(translations) as [string, Record<string, string>][]) {
+    for (const text of [scenario.title, scenario.description, scenario.prompt]) assert.ok(values[text]?.trim(), locale + ': ' + text);
+  }
+  const shared = readFileSync(new URL('../shared/integration.ts', import.meta.url), 'utf8');
+  assert.match(shared, /\$\{templateGuideContinuationInstruction\}/);
+  const templateSkill = readFileSync(new URL('../skills/openmotion-template-to-video/SKILL.md', import.meta.url), 'utf8');
+  const reference = readFileSync(new URL('../skills/openmotion-production/references/templates.md', import.meta.url), 'utf8');
+  assert.match(templateSkill, /guideDraft.*narrow exception/);
+  assert.match(reference, /guideDraft.*projectType|projectType.*guideDraft/s);
+  assert.match(reference, /applied=false.*unknown outcomes/s);
 });
 
 test('reference-image and audio guidance is translated in every interface language', () => {

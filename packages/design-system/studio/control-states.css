@@ -11,7 +11,7 @@
 /* Frame-sized comment hit targets keep only their focus outline; a button
    surface would hide the authored frame during hover or keyboard focus. */
 :root[data-motion-ui][data-motion-studio] :is(button, [role="button"], [role="tab"], [role="combobox"], [role="option"], [role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], .motion-community-link):not(:where([data-fullscreen-playback-surface], .connection-dialog *, .connect-preview-dialog *, .motion-library *, [data-motion-catalog] *, .om-media-quick-add, .om-primary-navigation-button, [data-review-comment-canvas], .timeline-clip, .timeline-clip *, .dv-tabs-container:not(:has(> .dv-tab ~ .dv-tab)) > .dv-tab:has([data-preview-heading]))) {
-  &:not(:disabled):not([aria-disabled="true"]):not([data-disabled]):not(.hf-od-primary, .motion-button-primary, .bg-danger, .om-nav-item, .om-button[data-primary], .om-text-link[data-quiet]):is(:hover, :focus-visible, [data-highlighted]) {
+  &:not(:disabled):not([aria-disabled="true"]):not([data-disabled]):not(.hf-od-primary, .motion-button-primary, .bg-danger, .om-nav-item, .om-button[data-primary], .om-media-pagination button, .om-text-link[data-quiet], .om-card[data-interactive], .om-gallery-categories[data-neutral] > button[aria-pressed="true"]):is(:hover, :focus-visible, [data-highlighted]) {
     background-color: var(--motion-hover);
     color: var(--motion-strong);
   }

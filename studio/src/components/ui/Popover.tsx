@@ -4,7 +4,7 @@
  */
 
 import { Popover as BasePopover } from "@base-ui/react/popover";
-import type { ComponentPropsWithoutRef, ReactElement, ReactNode } from "react";
+import { useRef, type ComponentPropsWithoutRef, type ReactElement, type ReactNode } from "react";
 import { cn } from "./cn";
 import { Tooltip } from "./Tooltip";
 import {
@@ -31,6 +31,8 @@ const arrowPlace = cn(
 interface PopoverProps extends Omit<ComponentPropsWithoutRef<typeof BasePopover.Root>, "children"> {
   /** A single element. It becomes the trigger; no wrapper is added around it. */
   trigger: ReactElement;
+  /** An adjacent action that previews the panel on hover and keeps its own click behavior. */
+  primaryAction?: ReactElement;
   /** Standard hover/focus hint for the popover trigger. */
   tooltip?: string;
   /** Also reveal a hoverable help panel; activation still pins it open. */
@@ -63,6 +65,7 @@ interface PopoverProps extends Omit<ComponentPropsWithoutRef<typeof BasePopover.
 
 export function Popover({
   trigger,
+  primaryAction,
   tooltip,
   openOnHover = false,
   children,
@@ -81,14 +84,19 @@ export function Popover({
   ...root
 }: PopoverProps) {
   const inline = useInlinePortal(container);
+  const primaryRef = useRef<HTMLButtonElement>(null);
+  const menuTrigger = <BasePopover.Trigger render={trigger} openOnHover={openOnHover}
+    delay={primaryAction ? 0 : undefined} aria-describedby={describedBy} />;
   return (
     <BasePopover.Root {...root}>
-      {tooltip === undefined ? <BasePopover.Trigger render={trigger} openOnHover={openOnHover} aria-describedby={describedBy} /> : (
-        <Tooltip label={tooltip} wrap><BasePopover.Trigger render={trigger} openOnHover={openOnHover} aria-describedby={describedBy} /></Tooltip>
-      )}
+      {primaryAction && <BasePopover.Trigger ref={primaryRef} render={primaryAction} openOnHover delay={0}
+        aria-haspopup={undefined} aria-expanded={undefined} aria-controls={undefined}
+        onClick={event => event.preventBaseUIHandler()} />}
+      {tooltip === undefined ? menuTrigger : <Tooltip label={tooltip} wrap>{menuTrigger}</Tooltip>}
       {inline.host}
       <BasePopover.Portal {...inline.portal} keepMounted={keepMounted}>
         <BasePopover.Positioner
+          anchor={primaryAction ? primaryRef : undefined}
           side={side}
           align={align}
           sideOffset={sideOffset}

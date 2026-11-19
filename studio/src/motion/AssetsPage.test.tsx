@@ -509,3 +509,87 @@ it('keeps Undo accessible inside the reference modal and refreshes both asset br
   expect(container.querySelector('[aria-label="Picture A"]')).not.toBeNull();
   expect(container.querySelector('.om-assets-page')?.getAttribute('data-creating')).toBe('true');
 });
+
+it('hands the selected still version to the Cinema first-frame draft', async () => {
+  const { findMediaStudio } = await import('../../../shared/studio-catalog');
+  const { studioDestination } = await import('./creativeStudios');
+  const asset = records.get('A')!;
+  asset.versions.push({ ...asset.versions[0], id: 'A-v2' });
+  asset.currentVersionId = 'A-v2';
+  const useAsFirstFrame = vi.fn();
+  const studio = { destination: studioDestination(findMediaStudio('cinema')!, 'shot-image'),
+    catalog: { catalog: undefined, failed: false, retry: vi.fn() }, remember: vi.fn(), chooseModel: vi.fn(), useAsFirstFrame };
+  await act(async () => root.render(<AssetsPage active studio={studio} />));
+  await flush();
+  await click('Picture A');
+  const versions = container.querySelectorAll<HTMLButtonElement>('.om-asset-version-list button');
+  await act(async () => versions[1].click());
+  await click('Use as first frame');
+  expect(useAsFirstFrame).toHaveBeenCalledWith({ reference: { assetId: 'A', versionId: 'A-v1' }, name: 'Picture A' });
+  expect(vi.mocked(assetRequest).mock.calls.some(([args]) => args.action === 'generate')).toBe(false);
+});
+
+it('prepares a first-frame draft from a guide and an uploaded image without submitting it', async () => {
+  const { findMediaStudio } = await import('../../../shared/studio-catalog');
+  const { studioDestination } = await import('./creativeStudios');
+  const { skillPreviewSnapshot } = await import('./skillCatalog');
+  const fetchPreview = vi.fn(async () => new Response('sample', { headers: { 'Content-Type': 'application/octet-stream' } }));
+  vi.stubGlobal('fetch', fetchPreview);
+  const remember = vi.fn();
+  const studio = { destination: studioDestination(findMediaStudio('cinema')!, 'image-to-video'),
+    catalog: { catalog: undefined, failed: false, retry: vi.fn() }, remember, chooseModel: vi.fn() };
+  await act(async () => root.render(<AssetsPage active studio={studio} />)); await flush();
+  expect(container.querySelector('.om-scene-guide')).toBeTruthy();
+  expect(fetchPreview).not.toHaveBeenCalled();
+  await click('Play');
+  expect(fetchPreview).toHaveBeenCalledWith(skillPreviewSnapshot + 'light-shadow-product.mp4', expect.anything());
+  expect(container.querySelector('.om-scene-example-media video')?.getAttribute('src')).toMatch(/^blob:/);
+  await click('Use prompt');
+  expect(remember.mock.lastCall?.[0].prompt).toMatch(/supplied frame/);
+  const file = new File(['data'], 'still.png', { type: 'image/png' });
+  const imported = fixture('new-still');
+  vi.mocked(uploadLibraryAsset).mockResolvedValueOnce(imported);
+  const input = container.querySelector<HTMLInputElement>('input[type=file][accept="image/*"]:not([multiple])')!;
+  Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+  await act(async () => input.dispatchEvent(new Event('change', { bubbles: true }))); await flush();
+  expect(remember.mock.lastCall?.[0].references).toEqual([{ name: imported.name, reference: { assetId: imported.id, versionId: imported.currentVersionId } }]);
+  const tab = container.querySelectorAll<HTMLButtonElement>('.om-assets-heading .om-choice-tabs button')[1];
+  await act(async () => tab.click());
+  expect(container.querySelector('.om-scene-guide')).toBeNull();
+  expect(vi.mocked(assetRequest).mock.calls.some(([args]) => args.action === 'generate')).toBe(false);
+});
+
+it('opens a pinned older version and ignores an earlier route read when search changes selection', async () => {
+  const asset = records.get('B')!;
+  asset.versions.push({ ...asset.versions[0], id: 'B-v2', parentVersionId: 'B-v1' });
+  asset.currentVersionId = 'B-v2';
+  const onAssetRoute = vi.fn(), lateRead = deferred<{ asset: LibraryAsset }>();
+  pendingRead = lateRead;
+  const select = async (id: string, version: string) => {
+    await act(async () => root.render(<AssetsPage active routeId={id} routeVersion={version} onAssetRoute={onAssetRoute} />));
+    await flush();
+  };
+  await select('A', 'A-v1');
+  await select('B', 'B-v1');
+  await act(async () => lateRead.resolve({ asset: records.get('A')! }));
+  expect(previewName()).toBe('Picture B');
+  expect(container.querySelector('.om-asset-version[aria-pressed=true] strong')?.textContent).toBe('V1');
+  await select('B', 'B-v2');
+  expect(container.querySelector('.om-asset-version[aria-pressed=true] strong')?.textContent).toBe('V2Current');
+  expect(onAssetRoute).not.toHaveBeenCalled();
+  await select('B', 'missing');
+  expect(onAssetRoute).toHaveBeenCalledWith(null, null);
+  expect(document.querySelector('[role=alert]')?.textContent).toContain('Asset version unavailable');
+});
+
+it('starts a focused image landing on its examples even when the user already has assets', async () => {
+  const { sceneDestination, studioScenes } = await import('./creativeStudios');
+  const studio = { destination: sceneDestination(studioScenes.find(scene => scene.id === 'text-to-image')!),
+    catalog: { catalog: undefined, failed: false, retry: vi.fn() }, remember: vi.fn(), chooseModel: vi.fn() };
+  await act(async () => root.render(<AssetsPage active studio={studio} />)); await flush();
+  expect(container.querySelector('.om-canvas-deck')).not.toBeNull();
+  const library = container.querySelectorAll<HTMLButtonElement>('.om-assets-heading .om-choice-tabs button')[1];
+  await act(async () => library.click());
+  expect(container.querySelector('.om-canvas-deck')).toBeNull();
+  expect(container.querySelector('.om-assets-main')!.textContent).toContain(records.get('A')!.name);
+});

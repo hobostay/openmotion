@@ -41,7 +41,8 @@ const templateSeries = { search_id: 'uuid', sort: sortOrder, applied_filter_coun
   ranking_policy: ['works59-ctr41-v1', 'catalog-v1'], ranking_snapshot: ['ctr-20261118-v2'] } as const;
 const templateDetail = { detail_view_id: 'uuid', detail_mode: ['modal'], resource_kind: ['reference', 'editable_project', 'motion_guide'],
   instruction_kind: ['template_use', 'reference_recreate', 'recreate_submit'] } as const;
-const templateList = { result_count: 'integer', search_id: 'uuid', sort: sortOrder, applied_filter_count: 'integer' } as const;
+const templateSearchContext = { library_view_id: 'uuid', discovery_id: 'uuid', result_set_id: 'uuid' } as const;
+const templateList = { ...templateSearchContext, result_count: 'integer', search_id: 'uuid', sort: sortOrder, applied_filter_count: 'integer' } as const;
 // Application pages that report their own views and clicks. The template library keeps page_name=studio.
 const pages = ['home', 'studio', 'skills', 'brand_kit', 'mcp', 'assets', 'settings', 'projects'] as const;
 // Workspace assets: which shelf the library shows and what kind of media an action is about.
@@ -54,8 +55,10 @@ const workspacePages = { asset_kind: assetKind, modality, task_mode: ['direct', 
   manager_tab: ['projects', 'trash'], selection_count: 'integer' } as const;
 // MCP connection page: which Agent client tab is shown, how the user reached the page and how they set it up.
 const mcpClient = ['codex', 'claude', 'cursor', 'deepseek', 'desktop', 'chatgpt', 'mcp'] as const;
-const mcpEntry = ['app_rail', 'settings_general', 'settings_resources', 'home_composer', 'project_composer', 'project_agent', 'platform_export', 'asset_chat', 'direct_link'] as const;
+const mcpEntry = ['app_header', 'app_rail', 'settings_general', 'settings_resources', 'home_composer', 'project_composer', 'project_agent', 'platform_export', 'asset_chat', 'direct_link'] as const;
 const entryFrom = [...mcpEntry, ...providerSetupEntries] as const;
+const referenceEntry = { reference_entry: ['library_home'] } as const;
+const referenceSource = { source_kind: ['link', 'local', 'description'] } as const;
 const mcp = { mcp_client: mcpClient, setup_method: ['agent', 'manual'], capability_id: 'slug' } as const;
 // A Skill is identified by its catalogue id and group only; the brief text never leaves the browser.
 const skill = { skill_id: 'slug', skill_category: ['talking_head', 'product_promos', 'explainers', 'product_ads', 'brand_covers', 'motion_techniques'] } as const;
@@ -144,8 +147,9 @@ export const omEvents = {
     element: ['new_creation', 'recent_session', 'open_project', 'select_template', 'copy_template',
       'select_work', 'select_chapter', 'browse_timeline', 'expand_learning', 'compare_brands',
       'open_detail', 'start_use', 'expand_instruction', 'category_select', 'filter_open', 'filter_clear',
-      'filter_option', 'sort_option', 'surprise_me', 'submit_video', 'detail_previous', 'detail_next',
+      'search_focus', 'clear_search', 'reference', 'describe', 'reference_source_select', 'choose_local_video', 'copy_brief', 'filter_option', 'sort_option', 'surprise_me', 'submit_video', 'detail_previous', 'detail_next',
       'download_guide', 'download_project', 'view_full_page', 'view_repository', 'view_source',
+      'view_guide', 'back_to_template', 'handoff_help', 'copy_color', 'back_to_project', 'retry_template_project', 'check_template_project', 'open_prepared_project',
       'submit_skill', 'copy_instruction', 'open_command', 'copy_command', 'close_detail',
       'collection_tab', 'new_brand_kit', 'download_package',
       'export', 'template_library', 'open_project_drawer', 'new_project', 'switch_project', 'project_search', 'theme_toggle',
@@ -173,10 +177,10 @@ export const omEvents = {
     interaction_method: ['pointer', 'keyboard'], ...project, ...template, ...templateSeries,
     chapter_index: 'integer', browse_method: ['arrow', 'drag'], direction: ['previous', 'next'],
     placement, position: 'integer', template_action: ['recreate', 'recreate_submit', 'open_edit'], target_agent: hosts,
-    copy_attempt_id: 'uuid', download_attempt_id: 'uuid',
+    copy_attempt_id: 'uuid', download_attempt_id: 'uuid', source_template_id: 'slug', operation_id: 'uuid',
     filter_group: ['brand', 'uses', 'styles', 'industries', 'creationModels', 'colors', 'ratio', 'duration', 'editable'], filter_value: 'slug',
     selected: 'boolean', expanded: 'boolean', previous_sort: sortOrder, changed: 'boolean', ...templateDetail, ...templateList,
-    ...skill, ...brand, brand_collection: brandCollection, ...mcp, entry_from: entryFrom,
+    ...skill, ...brand, brand_collection: brandCollection, ...mcp, entry_from: entryFrom, ...referenceEntry, ...referenceSource,
     doc_id: ['mcp_tools', 'skills', 'agent_adapters', 'docs_home', 'repository'], section_id: 'slug', faq_index: 'integer', ...workspacePages },
     required: ['page_name', 'area', 'element'] },
   // Studio UI exports run in the editor's own render pipeline, not the worker that owns export_result.
@@ -199,29 +203,40 @@ export const omEvents = {
   studio_history_step_result: { producers: ['studio'], fields: { action: ['undo', 'redo'], outcome: ['success', 'unavailable', 'failure'],
     interaction_method: ['pointer', 'keyboard'], ...project }, required: ['action', 'outcome'] },
   studio_asset_import_result: { producers: ['studio'], fields: { outcome: ['success', 'partial', 'failure', 'unknown'],
-    entry_point: ['assets_button', 'assets_drop', 'timeline_button', 'timeline_drop', 'properties', 'library_button', 'library_drop', 'library_new_version', 'other'],
+    entry_point: ['assets_button', 'assets_drop', 'timeline_button', 'timeline_drop', 'properties', 'library_button', 'library_drop', 'library_new_version', 'template_reference', 'other'],
     requested_count: 'integer', added_count: 'integer', failed_count: 'integer', unknown_count: 'integer', pending_count: 'integer',
-    error_category: ['too_large', 'unsupported_format', 'unreadable', 'runtime_not_ready', 'other'], ...project },
+    error_category: ['too_large', 'unsupported_format', 'unreadable', 'runtime_not_ready', 'other'], ...project, ...templateList, ...referenceEntry },
     required: ['outcome', 'entry_point', 'requested_count', 'added_count', 'failed_count'] },
   // A surface that became visible: the library, a template card, one template's detail, or the instruction to copy.
   // A card counts once it is at least half visible for a second, once per result set.
-  surface_view: { producers: ['studio'], fields: { page_name: pages, area: ['template_library', 'template_card', 'template_detail', 'template_instruction', 'skill_detail', 'brand_detail', 'template_series_card', 'template_series_detail', 'template_series_work'],
-    element: ['library', 'card', 'detail', 'instruction'], placement, position: 'integer', ...templateList, ...templateDetail, ...template, ...templateSeries,
-    ...skill, ...brand, brand_state: brandState },
+  surface_view: { producers: ['studio'], fields: { page_name: pages, area: ['template_library', 'template_card', 'template_detail', 'template_instruction', 'template_discovery', 'template_related', 'template_guide', 'skill_detail', 'brand_detail', 'template_series_card', 'template_series_detail', 'template_series_work'],
+    element: ['library', 'card', 'detail', 'instruction', 'search_recovery', 'reference', 'related', 'guide'], placement, position: 'integer', source_template_id: 'slug', ...templateList, ...templateDetail, ...template, ...templateSeries,
+    ...skill, ...brand, ...referenceEntry, brand_state: brandState, recovery_reason: ['no_results', 'unsuitable', 'catalog_empty'] },
     required: ['page_name', 'area', 'element'] },
   // One per settled query, never per keystroke. `search_keyword` is the only free-text field in this registry.
   template_search_result: { producers: ['studio'], fields: { page_name: ['home', 'studio'], area: ['template_discovery'],
     search_keyword: 'text', query_length: 'integer', outcome: ['success', 'failure'], ...templateList },
     required: ['search_id', 'query_length', 'result_count', 'outcome'] },
+  template_search_handoff_result: { producers: ['studio'], fields: { page_name: ['studio'], area: ['template_discovery'],
+    handoff_attempt_id: 'uuid', ...referenceSource, handoff_status: ['clipboard_written', 'manual_fallback', 'draft_added', 'failure'], ...templateList, ...referenceEntry },
+    required: ['handoff_attempt_id', 'source_kind', 'handoff_status'] },
   template_filter_result: { producers: ['studio'], fields: { page_name: ['home', 'studio'], area: ['template_discovery'],
     action: ['category_select', 'filter_apply', 'filter_clear', 'sort_change'], outcome: ['success', 'failure'], ...templateList },
     required: ['action', 'result_count', 'outcome'] },
   // `browser_save_requested` means the save was handed to the browser; nothing confirms the file reached disk.
   resource_download_result: { producers: ['studio'], fields: { page_name: pages, resource_kind: ['motion_guide', 'brand_kit_package'], download_attempt_id: 'uuid',
-    delivery_status: ['browser_save_requested', 'fetch_failed', 'unknown'], error_code: 'code', detail_view_id: 'uuid', detail_mode: ['modal'], ...template, ...brand, ...templateSeries },
+    delivery_status: ['browser_save_requested', 'fetch_failed', 'unknown'], error_code: 'code', ...templateList, detail_view_id: 'uuid', detail_mode: ['modal'], ...template, ...brand, ...templateSeries },
     required: ['resource_kind', 'download_attempt_id', 'delivery_status'] },
+  template_guide_interaction: { producers: ['studio'], fields: { page_name: ['studio'], template_id: 'code', view_id: 'uuid', project_id: 'uuid',
+    action: ['shown', 'edit', 'chapter', 'reference', 'reset', 'copy', 'open_editor', 'download', 'document', 'source'],
+    expanded: 'boolean', delivery_status: ['browser_save_requested', 'fetch_failed'],
+    field: ['title', 'accent'], outcome: ['success', 'failure', 'manual_fallback'] }, required: ['page_name', 'template_id', 'view_id', 'action'] },
   template_instruction_copy_result: { producers: ['studio'], fields: { host_product: hosts, copy_status: ['clipboard_written', 'manual_fallback_shown', 'failed'],
-    page_name: ['home', 'studio'], copy_attempt_id: 'uuid', ...templateDetail, ...project, ...template, ...templateSeries }, required: ['host_product', 'copy_status'] },
+    page_name: ['home', 'studio'], copy_attempt_id: 'uuid', ...templateList, ...templateDetail, ...project, ...template, ...templateSeries }, required: ['host_product', 'copy_status'] },
+  // One observed Studio handoff operation result, not an Agent receipt or a completed film.
+  template_project_result: { producers: ['studio'], fields: { page_name: ['studio'], ...template, ...project, ...templateDetail,
+    operation_id: 'uuid', handoff_attempt_id: 'uuid', stage: ['create', 'reconcile', 'open'], outcome: ['success', 'failure', 'unknown', 'not_found'] },
+    required: ['template_id', 'operation_id', 'handoff_attempt_id', 'stage', 'outcome'] },
   // Skills page. One search result per settled query; the brief itself is reduced to its choices and two yes/no flags.
   skill_search_result: { producers: ['studio'], fields: { page_name: ['skills'], area: ['skill_discovery'], search_id: 'uuid', search_keyword: 'text',
     query_length: 'integer', result_count: 'integer', outcome: ['success'], skill_category: skill.skill_category },

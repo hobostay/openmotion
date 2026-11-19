@@ -1,6 +1,8 @@
 # Motion 效果扩展的职责边界
 
-模板能力包含 Motion 的两条链路：参考视频转可编辑模板（`openmotion-video-to-template`，不提问，由 Agent 自行决定并记录取舍）、模板转视频（`openmotion-template-to-video`，面向用户，缺事实或素材时可以提问）。openmotion-video-to-template 只承接可复用模板交付；普通参考视频复刻由 openmotion-recreate 实现（重建、测量参考与脚本在其自身目录内，不依赖模板 Skill），不默认先转模板。已有模板的修改由 openmotion-template-to-video 处理。底层工程沿用 HyperFrames；模板是可携带源码、素材、预览和编辑说明。视觉接受程度由用户判断，技术检查不代替人类验收。
+参考视频转模板（`openmotion-video-to-template`）交付可复用模板。Agent 自行决定并记录常规创作取舍，不询问创作偏好。需要付费生成且计划批次尚未获授权时，在提交请求前集中确认一次。已有模板的修改由 `openmotion-template-to-video` 处理，缺少用户才能提供的事实或素材时可以提问。
+
+普通参考视频复刻由 `openmotion-recreate` 交付成片和可编辑工程。两种参考视频流程沿用共用的参考片分析和测量方法。模板沿用 HyperFrames，随包携带源码、素材、预览和编辑说明。技术检查与视觉验收分别记录。
 
 ## 当前分发与接口
 

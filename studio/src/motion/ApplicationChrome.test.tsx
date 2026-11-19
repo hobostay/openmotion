@@ -3,7 +3,7 @@ import React, { act } from 'react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanupMounted, mountHost } from '../components/ui/mountHost.testHelpers';
 import { I18nProvider, LOCALE_STORAGE_KEY } from '../i18n/I18n';
-import { ApplicationRail } from './ApplicationChrome';
+import { ApplicationAccountMenu } from './ApplicationChrome';
 import { SettingsCenter } from './SettingsCenter';
 
 vi.mock('./WorkspaceFrame', () => ({ useWorkspaceChrome: () => ({ openHome: vi.fn(), openLibrary: vi.fn(), switchingDisabled: false, navigationCollapsed: false }) }));
@@ -18,7 +18,7 @@ const settle = () => act(async () => { await new Promise(resolve => setTimeout(r
 const click = async (element: Element | null) => { expect(element).not.toBeNull(); act(() => (element as HTMLElement).click()); await settle(); };
 
 it('switches the shared locale from the account submenu and keeps settings in sync', async () => {
-  mountHost(<I18nProvider initialLocale="en"><ApplicationRail home={<button aria-label="Home" />} settings="general" openSettings={() => {}} /><SettingsCenter section="general" onSection={() => {}} openConnections={() => {}} /></I18nProvider>);
+  mountHost(<I18nProvider initialLocale="en"><ApplicationAccountMenu settings="general" openSettings={() => {}} /><SettingsCenter section="general" onSection={() => {}} openConnections={() => {}} /></I18nProvider>);
   await click(document.querySelector('[aria-label="Account menu"]'));
   const language = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(item => item.textContent?.includes('Language'))!;
   act(() => { language.focus(); language.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })); });
@@ -36,7 +36,7 @@ it('switches the shared locale from the account submenu and keeps settings in sy
 });
 
 it('uses the same direct GitHub destinations in the account menu and settings resources', async () => {
-  mountHost(<I18nProvider initialLocale="en"><ApplicationRail home={<button aria-label="Home" />} settings="help" openSettings={() => {}} /><SettingsCenter section="help" onSection={() => {}} openConnections={() => {}} /></I18nProvider>);
+  mountHost(<I18nProvider initialLocale="en"><ApplicationAccountMenu settings="help" openSettings={() => {}} /><SettingsCenter section="help" onSection={() => {}} openConnections={() => {}} /></I18nProvider>);
   await settle();
   await click(document.querySelector('[aria-label="Account menu"]'));
   for (const [label, href] of [["What's new", 'https://github.com/nexu-io/openmotion/releases'], ['Feedback', 'https://github.com/nexu-io/openmotion/issues/new/choose']]) {

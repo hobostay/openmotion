@@ -1,3 +1,5 @@
+import { findLandingScene, findMediaStudio, findTechniqueStudio } from './studio-catalog.ts';
+
 export const providerSetupEntries = [
   'agent_providers', 'agent_media_signed_out', 'agent_media_upgrade_free', 'agent_media_upgrade_go',
   'agent_media_balance_low', 'agent_media_key_rejected', 'agent_media_handbook',
@@ -5,10 +7,19 @@ export const providerSetupEntries = [
 export type ProviderSetupEntry = typeof providerSetupEntries[number];
 
 export type WorkspacePresentation = { embedded: boolean; sidebar: boolean; conversation: boolean };
-/** Settings, MCP, Assets, Skills and Brand Kit can open even when the retained project cannot start. */
-export function isWorkspaceSettingsPage(search: string) {
-  const page = new URLSearchParams(search).get('page');
-  return page === 'settings' || page === 'mcp' || page === 'assets' || page === 'skills' || page === 'brand-kit';
+/** Project and template handoff URLs retain their editor context. */
+export function workspacePageName(query: URLSearchParams, hash: string) {
+  if (query.has('page')) return query.get('page');
+  if (query.has('project') || query.has('session') || hash.startsWith('#project/') || query.get('templates') === '1' || query.get('hostChrome') === '1') return null;
+  return 'explore';
+}
+
+/** Independent workspace pages remain usable even when the retained project cannot start. */
+export function isWorkspaceSettingsPage(search: string, hash = '') {
+  const query = new URLSearchParams(search), page = workspacePageName(query, hash);
+  if (page === 'model') return Boolean(query.get('model'));
+  if (page === 'create') return Boolean(findLandingScene(query.get('scene')));
+  return page === 'api' || page === 'settings' || page === 'mcp' || page === 'assets' || page === 'skills' || page === 'brand-kit' || page === 'explore' || page === 'motion' || Boolean(findMediaStudio(page) || findTechniqueStudio(page));
 }
 export function workspacePresentation(search: string): WorkspacePresentation {
   const query = new URLSearchParams(search), embedded = query.get('embed') === '1';

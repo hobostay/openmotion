@@ -1,3 +1,4 @@
+import { findMediaStudio, findTechniqueStudio } from '../../../shared/studio-catalog';
 // @vitest-environment happy-dom
 import { act, useState, type ComponentProps } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -224,4 +225,89 @@ it('keeps unsupported account reference drafts blocked without promising first-f
   expect(container.querySelector('.om-generation-summary')!.textContent).not.toContain('Follows first frame');
   expect(container.querySelector<HTMLButtonElement>('.om-creation-submit-button')!.disabled).toBe(true);
   expect(generate).not.toHaveBeenCalled();
+});
+
+it('requires a pinned image and a capable model for the image-editing scene', async () => {
+  const { studioDestination } = await import('./creativeStudios');
+  const editing = { ...model, id: 'codex:edit', label: 'Edit model', supportsImageReference: true };
+  loadGateway.mockResolvedValue({ models: [model, editing], status: { providers: [{ id: 'codex', available: true }], routes: { image: model.id } } });
+  const studio = { catalog: { catalog: await loadGateway(), failed: false, retry: vi.fn() }, destination: studioDestination(findMediaStudio('design')!, 'image-edit', editing.id), remember: vi.fn(), chooseModel: vi.fn() };
+  const draft = { modality: 'image' as const, prompt: 'Change the light', references: [] };
+  await act(async () => root.render(<AssetComposer {...props} studio={studio} draft={draft} />));
+  const submit = () => container.querySelector<HTMLButtonElement>('.om-creation-submit-button')!;
+  expect(submit().disabled).toBe(true);
+  const reference = { assetId: 'asset', versionId: 'pinned' };
+  await act(async () => root.render(<AssetComposer {...props} studio={studio} draft={{ ...draft, references: [{ reference, name: 'First' }] }} />));
+  expect(submit().disabled).toBe(false);
+  generate.mockResolvedValue({ job: { id: 'job' } });
+  await act(async () => submit().click());
+  expect(generate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ model: editing.id, references: [reference] }));
+});
+
+it('never substitutes a music model for a routed speech model', async () => {
+  const { studioDestination } = await import('./creativeStudios');
+  const music = { ...model, id: 'p:music', modality: 'audio', mode: 'text-to-audio' };
+  loadGateway.mockResolvedValue({ models: [music], status: { providers: [{ id: 'codex', available: true }], routes: { audio: music.id } } });
+  const studio = { catalog: { catalog: await loadGateway(), failed: false, retry: vi.fn() }, destination: studioDestination(findMediaStudio('sound')!, 'speech', 'p:voice'), remember: vi.fn(), chooseModel: vi.fn() };
+  await act(async () => root.render(<AssetComposer {...props} studio={studio} draft={{ modality: 'audio', prompt: 'Hello', references: [] }} />));
+  expect(container.textContent).toContain('p:voice');
+  expect(container.querySelector<HTMLButtonElement>('.om-creation-submit-button')?.disabled).toBe(true);
+  expect(generate).not.toHaveBeenCalled();
+});
+
+it('keeps the prompt and pinned reference while switching providers with identically named models', async () => {
+  const { studioDestination } = await import('./creativeStudios');
+  const editing = { ...model, label: 'Studio Image', supportsImageReference: true };
+  const alternate = { ...editing, id: 'other:image', provider: 'other' };
+  const offline = { ...editing, id: 'offline:image', provider: 'offline' };
+  const reference = { assetId: 'product', versionId: 'v1' };
+  const catalog = { models: [editing, alternate, offline], status: {
+    providers: [{ id: 'codex', label: 'Codex', available: true }, { id: 'other', label: 'Alternate', available: true }, { id: 'offline', label: 'Offline', available: false }],
+    routes: { image: model.id }
+  } };
+  loadGateway.mockResolvedValue(catalog);
+  const loaded = await loadGateway();
+  function Harness() {
+    const [id, chooseModel] = useState(editing.id);
+    const [draft, setDraft] = useState<AssetDraft>({ ...props.draft, references: [{ reference, name: 'Photo' }] });
+    return <AssetComposer {...props} draft={draft} setDraft={setDraft} studio={{
+      catalog: { catalog: loaded, failed: false, retry: vi.fn() }, chooseModel, remember: vi.fn(),
+      destination: studioDestination(findMediaStudio('design')!, 'image-edit', id)
+    }} />;
+  }
+  const switchTo = async (label: string) => {
+    await act(async () => container.querySelector<HTMLButtonElement>('[role="combobox"][aria-label="Provider"]')!.click());
+    await act(async () => [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(item => item.textContent?.includes(label))!.click());
+  };
+  await act(async () => root.render(<Harness />));
+  await switchTo('Offline');
+  const submit = () => container.querySelector<HTMLButtonElement>('.om-creation-submit-button')!;
+  expect(submit().disabled).toBe(true);
+  await switchTo('Alternate');
+  expect(container.querySelector<HTMLTextAreaElement>('[aria-label="Asset prompt"]')!.value).toBe(props.draft.prompt);
+  expect(generate).not.toHaveBeenCalled();
+  generate.mockResolvedValue({ job: { id: 'new' } });
+  await act(async () => submit().click());
+  expect(generate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ action: 'generate', model: alternate.id, mode: alternate.mode,
+    prompt: props.draft.prompt, references: [reference], parameters: {} }));
+});
+
+it.each([
+  { scene: 'text-to-video', duration: 10, expected: { duration: 10, ratio: '9:16' } },
+  { scene: 'image-to-video', duration: 30, expected: {} },
+] as const)('submits the requested shot once using compatible preferences for $scene', async ({ scene, duration, expected }) => {
+  const { studioDestination } = await import('./creativeStudios');
+  const selected = cloudVideo();
+  selected.generationOptions!.fields.push({ key: 'duration', kind: 'choice', label: 'Duration (seconds)', choices: [{ value: 10, label: '10' }] });
+  loadGateway.mockResolvedValue(cloudState([selected]));
+  const studio = { catalog: { catalog: await loadGateway(), failed: false, retry: vi.fn() }, chooseModel: vi.fn(), remember: vi.fn(),
+    destination: studioDestination(findTechniqueStudio('shorts')!, scene, selected.id) };
+  const references = scene === 'image-to-video' ? firstFrame : [];
+  const draft: AssetDraft = { modality: 'video', prompt: 'A vertical shot of a ceramic vase', references, shotPreferences: { aspect: '9:16', duration } };
+  await act(async () => root.render(<AssetComposer {...props} draft={draft} studio={studio} />));
+  expect(generate).not.toHaveBeenCalled();
+  generate.mockResolvedValue({ job: { id: 'test-shot' } });
+  await act(async () => container.querySelector<HTMLButtonElement>('.om-creation-submit-button')!.click());
+  expect(generate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ action: 'generate', model: selected.id,
+    prompt: draft.prompt, references: references.map(item => item.reference), parameters: expected }));
 });

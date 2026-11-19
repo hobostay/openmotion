@@ -17,7 +17,9 @@
 .om-mcp-setup-grid, .om-mcp-policy-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--motion-space-16); }
 .om-mcp-step { min-width: 0; text-align: left; display: flex; flex-direction: column; align-items: flex-start; gap: var(--motion-space-20); }
 .om-mcp-step > * { max-width: 100%; }
-.om-mcp-step > [data-orientation] { width: 100%; }
+.om-mcp-step > [data-orientation] { width: 100%; min-width: 0; }
+.om-mcp-step [role="tablist"] { max-width: 100%; flex-wrap: wrap; }
+.om-mcp-step [role="tab"] { max-width: 100%; white-space: normal; overflow-wrap: anywhere; min-height: var(--motion-control-sm); height: auto; }
 .om-mcp-instruction { display: flex; flex-direction: column; align-items: stretch; gap: var(--motion-space-16); padding-top: var(--motion-space-20); }
 .om-mcp-step h2 { display: flex; align-items: center; gap: var(--motion-space-12); margin-bottom: 0; }
 .om-mcp-step-number { width: 28px; height: 28px; flex: none; display: grid; place-items: center; }
@@ -57,14 +59,15 @@
 .om-mcp-contact { display: flex; flex-direction: column; align-items: flex-start; gap: var(--motion-space-12); margin-top: var(--motion-space-32); }
 .om-mcp-faq-intro { align-self: start; }
 .om-mcp-footer { margin-top: var(--motion-space-24); display: grid; grid-template-columns: 1.2fr 1fr; gap: var(--motion-space-48); }
-.om-mcp-footer-intro { display: flex; flex-direction: column; align-items: flex-start; gap: var(--motion-space-20); }
+.om-mcp-footer-intro { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: var(--motion-space-20); overflow-wrap: anywhere; }
+.om-mcp-footer-intro > * { max-width: 100%; }
 .om-mcp-footer-links { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--motion-space-24); align-content: start; }
-.om-mcp-footer-links > div { display: flex; flex-direction: column; align-items: flex-start; gap: var(--motion-space-16); }
+.om-mcp-footer-links > div { min-width: 0; overflow-wrap: anywhere; display: flex; flex-direction: column; align-items: flex-start; gap: var(--motion-space-16); }
 .om-mcp-table td > svg { display: inline; margin-right: var(--motion-space-6); vertical-align: middle; }
 
 @container (max-width: 800px) {
   .om-mcp-content { padding-inline: var(--motion-space-20); }
-  .om-mcp-setup-grid, .om-mcp-faq, .om-mcp-footer { grid-template-columns: 1fr; }
+  .om-mcp-setup-grid, .om-mcp-faq, .om-mcp-footer { grid-template-columns: minmax(0, 1fr); }
   .om-mcp-template-grid { columns: 2; }
   .om-mcp-benefit-grid, .om-mcp-capability-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

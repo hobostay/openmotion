@@ -26,7 +26,7 @@
   border: 0;
   border-radius: var(--motion-radius-xl);
   background-color: transparent;
-  color: light-dark(var(--motion-neutral-n8), var(--motion-neutral-n6));
+  color: light-dark(var(--motion-neutral-n8), var(--motion-chrome-icon));
   cursor: pointer;
   transition: background-color var(--motion-duration-fast) var(--motion-ease-out),
     color var(--motion-duration-fast) var(--motion-ease-out);
@@ -38,12 +38,12 @@
 }
 
 .om-primary-navigation-button:not(:disabled, [aria-disabled="true"], [data-disabled]):hover {
-  background-color: light-dark(var(--motion-neutral-n3), var(--motion-neutral-n10));
+  background-color: light-dark(var(--motion-neutral-n3), var(--motion-chrome-hover));
 }
 
 .om-primary-navigation-button:not(:disabled, [aria-disabled="true"], [data-disabled]):is([aria-pressed="true"], [aria-current="page"], [aria-expanded="true"]) {
-  background-color: light-dark(var(--motion-neutral-n4), var(--motion-neutral-n9));
-  color: light-dark(var(--motion-neutral-n11), var(--motion-neutral-n1));
+  background-color: light-dark(var(--motion-neutral-n4), var(--motion-chrome-active));
+  color: light-dark(var(--motion-neutral-n11), var(--motion-accent));
 }
 
 .om-primary-navigation-button:not(:disabled, [aria-disabled="true"], [data-disabled]):active {

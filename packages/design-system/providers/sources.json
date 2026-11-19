@@ -277,6 +277,40 @@
     "wavespeed.svg": {
       "source": "lobe",
       "path": "packages/static-svg/icons/wavespeed.svg"
+    },
+    "models/bytedance-color.svg": {
+      "source": "readmeModelMarks",
+      "path": "docs/readme/models/seedance.svg"
+    },
+    "models/flux.svg": {
+      "source": "readmeModelMarks",
+      "path": "docs/readme/models/flux.svg"
+    },
+    "models/suno.svg": {
+      "source": "readmeModelMarks",
+      "path": "docs/readme/models/suno.svg"
+    },
+    "models/nano-banana-color.svg": {
+      "source": "readmeModelMarks",
+      "path": "docs/readme/models/nano-banana.svg"
+    },
+    "models/elevenlabs.svg": {
+      "source": "readmeModelMarks",
+      "path": "docs/readme/models/elevenlabs.svg"
+    },
+    "models/alibaba-color.svg": {
+      "source": "readmeModelMarks",
+      "path": "docs/readme/models/wan.svg"
+    },
+    "models/google-color.svg": {
+      "source": "readmeModelMarks",
+      "path": "docs/readme/models/veo.svg"
     }
+  },
+  "readmeModelMarks": {
+    "repository": "https://github.com/lobehub/lobe-icons",
+    "package": "@lobehub/icons-static-svg",
+    "version": "1.102.0",
+    "license": "lobe-icons-LICENSE.txt"
   }
 }

@@ -89,7 +89,11 @@ test('workspace generation keeps job identity and pinned references without requ
 
 test('asset HTTP uploads are replayable and media supports byte ranges; project imports pin independent copies', () => fixture(async store => {
   const source = await image(store.directory), bytes = await readFile(source), fetch = transport(store);
-  const upload = () => fetch('/motion-api/assets/upload?requestId=browser-upload', { method: 'POST', body: new Blob([bytes]), headers: { 'X-File-Name': encodeURIComponent('My image.png') } });
+  const upload = (request = 'browser-upload') => fetch('/motion-api/assets/upload?requestId=' + request, { method: 'POST', body: new Blob([bytes]), headers: { 'X-File-Name': encodeURIComponent('My image.png') } });
+  const refused = await upload('video-picker&modality=video');
+  assert.equal(refused.ok, false);
+  assert.match(await refused.text(), /Unsupported media type/);
+  assert.equal((await new AssetLibrary(store).list()).total, 0);
   const response = await upload(); assert.equal(response.status, 200, await response.clone().text());
   const { asset } = await response.json(); assert.equal((await (await upload()).json()).asset.id, asset.id);
   const url = `/motion-api/assets/${asset.id}/versions/${asset.currentVersionId}/file`;

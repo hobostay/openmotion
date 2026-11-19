@@ -17,21 +17,37 @@ import { AssetUploadError } from './assetUploadError';
 import { assetUploadMessage, type AssetUploadSummary } from '../i18n/assetUploadMessages';
 import { AssetDetailWorkspace } from './AssetDetailWorkspace';
 import { ResizablePane } from './ResizablePane';
+import type { StudioCreation } from './CreativeWorkspace';
+import { sceneLayout } from './sceneShowcase';
+import { StudioIdeas } from './StudioIdeas';
 import './assets.css';
-export function AssetsPage({ active, hasProject = false }: { active: boolean; hasProject?: boolean }) {
+export function AssetsPage({ active, hasProject = false, studio, routeId, routeVersion, onAssetRoute }: { routeId?: string | null; routeVersion?: string | null; onAssetRoute?: (id: string | null, version: string | null) => void; active: boolean; hasProject?: boolean; studio?: StudioCreation }) {
   const { t } = useI18n(), toast = useToast();
-  const [kind, setKind] = useState<AssetKind>('all'), [revision, setRevision] = useState(0), [creating, setCreating] = useState(false), [picking, setPicking] = useState(false), [uploading, setUploading] = useState(false), [selected, setSelected] = useState<LibraryAsset>(), [versionId, setVersionId] = useState(''), [jobs, setJobs] = useState<GenerationJob[]>([]);
-  const [draft, setDraft] = useState<AssetDraft>({ modality: 'image', prompt: '', references: [] });
+  const [kind, setKind] = useState<AssetKind>(studio?.destination.scene.modality ?? 'all'), [revision, setRevision] = useState(0), [creating, setCreating] = useState(Boolean(studio)), [picking, setPicking] = useState(false), [uploading, setUploading] = useState(false), [selected, setSelected] = useState<LibraryAsset>(), [versionId, setVersionId] = useState(''), [jobs, setJobs] = useState<GenerationJob[]>([]);
+  const [draft, setDraft] = useState<AssetDraft>(() => studio?.initialDraft ?? { modality: studio?.destination.scene.modality ?? 'image', prompt: '', references: [] });
+  const layout = studio && sceneLayout(studio.destination.scene);
+  const [studioTab, setStudioTab] = useState<'guide' | 'library'>();
   const [mobileView, setMobileView] = useState<'library' | 'create'>('create');
   const [agentReferences, setAgentReferences] = useState<AssetDraft['references']>([]);
   const [mode, setMode] = useState<AssetTaskMode>('direct'), [taskIds, setTaskIds] = useState<{ direct?: string; agent?: string }>({}), [taskEpoch, setTaskEpoch] = useState(0);
   const [conversations, setConversations] = useState<AssetChatSummary[]>([]), [historyLoading, setHistoryLoading] = useState(true), [historyError, setHistoryError] = useState<string>(), [historyRetry, setHistoryRetry] = useState(0), [selectingTask, setSelectingTask] = useState(false);
+  const studioForm = studio && !selected ? studio : undefined;
+  const scoped = Boolean(studio), lastStudioDraft = useRef(draft);
+  useLayoutEffect(() => {
+    if (studioForm && !draft.target && draft.modality === studioForm.destination.scene.modality) {
+      lastStudioDraft.current = draft;
+      studioForm.remember(draft);
+    }
+  }, [studioForm, draft]);
   const selectionRequest = useRef(0);
   const selectedAsset = useRef<LibraryAsset | undefined>(undefined), assetReadRequest = useRef(0);
   const pendingWrites = useRef(new Set<string>()), [updatingAssets, setUpdatingAssets] = useState<Set<string>>(new Set());
   const browser = useAssetBrowser({ kind, revision, active });
   // One page view each time the library is shown; the page stays mounted while hidden.
   useEffect(() => { if (active) tracking.reportAssetsPageView(hasProject); }, [active]);
+  const hasGuide = studio?.destination.landing || layout === 'workbench';
+  const guide = Boolean(hasGuide && (studioTab ? studioTab === 'guide' : studio?.destination.landing || browser.data?.total === 0));
+  const applyPrompt = (prompt: string) => { setDraft(current => ({ ...current, prompt })); setMobileView('create'); };
   const gallery = useRef<HTMLElement>(null), galleryScroll = useRef<{ top: number; key: string } | undefined>(undefined);
   useLayoutEffect(() => {
     if (selected || !gallery.current || !browser.data || !galleryScroll.current) return;
@@ -43,17 +59,50 @@ export function AssetsPage({ active, hasProject = false }: { active: boolean; ha
     if ((current.find(item => item.id === chat.id)?.updatedAt ?? -1) > chat.updatedAt) return current;
     return [chat, ...current.filter(item => item.id !== chat.id)];
   }), []);
-  const upload = useRef<HTMLInputElement>(null), replace = useRef<HTMLInputElement>(null), knownJobs = useRef<GenerationJob[]>([]);
+  const referenceUpload = useRef<HTMLInputElement>(null), upload = useRef<HTMLInputElement>(null), replace = useRef<HTMLInputElement>(null), knownJobs = useRef<GenerationJob[]>([]);
   const refresh = useCallback(() => setRevision(v => v + 1), []), onError = useCallback((message: string) => toast.showToast(message), [toast.showToast]);
-  const closePreview = useCallback(() => {
+  const missingVersion = t('Asset version unavailable');
+  const clearPreview = useCallback(() => {
     selectionRequest.current++; assetReadRequest.current++; selectedAsset.current = undefined;
-    setSelectingTask(false); setSelected(undefined); setVersionId(''); setCreating(false);
-  }, []);
-  const open = useCallback((asset: LibraryAsset) => {
-    if (gallery.current && browser.data) galleryScroll.current = { top: gallery.current.scrollTop, key: browser.data.key };
+    setSelectingTask(false); setSelected(undefined); setVersionId(''); setCreating(scoped);
+    if (scoped) { setMode('direct'); setDraft(lastStudioDraft.current); setTaskIds({}); }
+  }, [scoped]);
+  const closePreview = useCallback(() => {
+    clearPreview();
+    onAssetRoute?.(null, null);
+  }, [clearPreview, onAssetRoute]);
+  const selectVersion = useCallback((asset: LibraryAsset, id: string) => {
     selectionRequest.current++; assetReadRequest.current++; selectedAsset.current = asset;
-    setSelectingTask(false); setSelected(asset); setVersionId(asset.currentVersionId); setCreating(false);
-  }, [browser.data]);
+    setSelectingTask(false); setSelected(asset); setVersionId(id); setCreating(false);
+  }, []);
+  const open = useCallback((asset: LibraryAsset, id = asset.currentVersionId) => {
+    if (gallery.current && browser.data) galleryScroll.current = { top: gallery.current.scrollTop, key: browser.data.key };
+    selectVersion(asset, id);
+    onAssetRoute?.(asset.id, id);
+  }, [browser.data, onAssetRoute, selectVersion]);
+  useEffect(() => {
+    if (!active || !onAssetRoute) return;
+    if (!routeId) {
+      if (selectedAsset.current) clearPreview();
+      return;
+    }
+    const existing = selectedAsset.current;
+    if (existing?.id === routeId && assetVersion(existing, routeVersion ?? existing.currentVersionId)) {
+      setVersionId(routeVersion ?? existing.currentVersionId);
+      return;
+    }
+    clearPreview();
+    const request = ++selectionRequest.current;
+    void assetRequest<{ asset: LibraryAsset }>({ action: 'get', assetId: routeId }).then(({ asset }) => {
+      if (request !== selectionRequest.current) return;
+      const id = routeVersion ?? asset.currentVersionId;
+      if (!assetVersion(asset, id)) throw new Error(missingVersion);
+      selectVersion(asset, id);
+    }).catch(error => {
+      if (request === selectionRequest.current) { onError(error.message); onAssetRoute(null, null); }
+    });
+    return () => { selectionRequest.current++; };
+  }, [active, routeId, routeVersion, onAssetRoute, onError, clearPreview, selectVersion, missingVersion]);
   useEffect(() => {
     if (!active) return; let cancelled = false, pending = false;
     const poll = async () => {
@@ -90,14 +139,14 @@ export function AssetsPage({ active, hasProject = false }: { active: boolean; ha
     }).catch(error => { if (!cancelled && request === assetReadRequest.current) onError(error.message); });
     return () => { cancelled = true; };
   }, [active, selected?.id, revision, onError, closePreview, refresh]);
-  const importFiles = async (files: File[], newVersion = false, entry: 'library_button' | 'library_drop' | 'library_new_version' = newVersion ? 'library_new_version' : 'library_button') => {
+  const importFiles = async (files: File[], newVersion = false, entry: 'library_button' | 'library_drop' | 'library_new_version' = newVersion ? 'library_new_version' : 'library_button', onImported?: (asset: LibraryAsset) => void) => {
     const targetId = newVersion ? selected?.id : undefined, parentVersionId = newVersion ? versionId : undefined, request = selectionRequest.current;
     if (newVersion && !targetId) return;
     if (uploading || !files.length) return; setUploading(true);
     const summary: AssetUploadSummary = { uploaded: 0, failed: 0, unknown: 0, reasons: new Set() };
     try {
       for (const file of files) {
-        try { const asset = await uploadLibraryAsset(file, targetId, parentVersionId); summary.uploaded++; if (newVersion && request === selectionRequest.current && selectedAsset.current?.id === targetId) open(asset); }
+        try { const asset = await uploadLibraryAsset(file, { assetId: targetId, parentVersionId }); summary.uploaded++; if (request === selectionRequest.current) onImported?.(asset); if (newVersion && request === selectionRequest.current && selectedAsset.current?.id === targetId) open(asset); }
         catch (error) {
           if (error instanceof AssetUploadError && error.outcome === 'rejected') {
             summary.failed++; if (error.reason) summary.reasons.add(error.reason);
@@ -166,7 +215,7 @@ export function AssetsPage({ active, hasProject = false }: { active: boolean; ha
     try {
       const { asset } = await assetRequest<{ asset: LibraryAsset }>({ action: 'get', assetId: reference.assetId });
       if (request !== selectionRequest.current) return;
-      open(asset); setVersionId(reference.versionId);
+      open(asset, reference.versionId);
     } catch (error) { if (request === selectionRequest.current) onError((error as Error).message); }
   };
   const viewJob = (job: GenerationJob) => { if (job.libraryAssets?.[0]) void openReference(job.libraryAssets[0]); };
@@ -212,38 +261,56 @@ export function AssetsPage({ active, hasProject = false }: { active: boolean; ha
     } catch (error) { if (request === selectionRequest.current) onError((error as Error).message); }
     finally { if (request === selectionRequest.current) setSelectingTask(false); }
   };
+  const blankCanvas = layout === 'canvas' && browser.data?.total === 0 && !browser.query && browser.source === 'all';
+  const studioEmpty = studio && (layout === 'canvas' && !hasGuide ? <StudioIdeas destination={studio.destination} onPrompt={applyPrompt} /> : <p className="om-muted">{t('No assets yet')}</p>);
   const history = { tasks, selectedKey, loading: historyLoading, error: historyError, onRetry: () => { setHistoryLoading(true); setHistoryRetry(value => value + 1); }, onSelect: (task: AssetTask) => { tracking.reportAssetsClick('asset_tasks', 'select_task', { task_mode: task.mode }); void selectTask(task); } };
   const taskMenu = <AssetTaskMenu {...history} disabled={selectingTask} />;
-  const composer = <AssetComposer key={taskEpoch} active={active} draft={draft} setDraft={setDraft} agentReferences={agentReferences} setAgentReferences={setAgentReferences} jobs={jobs} mode={mode} onMode={next => { if (next !== mode) tracking.reportAssetsClick('asset_create', 'mode_switch', { task_mode: next }); setMode(next); }} taskIds={taskIds} history={history} selectingTask={selectingTask}
+  const composer = <AssetComposer studio={studioForm} key={taskEpoch} active={active} draft={draft} setDraft={setDraft} agentReferences={agentReferences} setAgentReferences={setAgentReferences} jobs={jobs} mode={mode} onMode={next => { if (next !== mode) tracking.reportAssetsClick('asset_create', 'mode_switch', { task_mode: next }); setMode(next); }} taskIds={taskIds} history={history} selectingTask={selectingTask}
     onNew={() => startDraft(mode === 'agent' ? draft : { modality: draft.modality, prompt: '', references: [] }, mode)} onChatChanged={chatChanged}
     onChatStarted={id => setTaskIds(current => ({ ...current, agent: id }))}
-    onCancel={cancelJob} onRetrySave={retrySave} onResume={resumeJob} onView={viewJob} onReference={() => { tracking.reportAssetsClick('asset_create', 'add_reference', { task_mode: mode }); setPicking(true); }} onCreated={job => {
+    onCancel={cancelJob} onRetrySave={retrySave} onResume={resumeJob} onView={viewJob} onUploadReference={studioForm && !uploading ? () => referenceUpload.current?.click() : undefined} onReference={() => { tracking.reportAssetsClick('asset_create', 'add_reference', { task_mode: mode }); setPicking(true); }} onCreated={job => {
       knownJobs.current = mergeAssetJobs(knownJobs.current, [job]); setJobs(knownJobs.current); setTaskIds(current => ({ ...current, direct: job.id }));
       refresh(); toast.showToast(t('Generation started. Track it in Tasks.'), 'info');
     }} onError={onError} onClose={() => { selectionRequest.current++; setSelectingTask(false); setCreating(false); }} />;
-  return <div className="om-assets-page" data-creating={creating} data-previewing={Boolean(selected)} data-mobile-view={mobileView}>
+  return <div className="om-assets-page" data-scene-layout={layout} data-creating={creating} data-previewing={Boolean(selected)} data-mobile-view={mobileView}>
     {selected ? <AssetDetailWorkspace asset={selected} versionId={versionId} active={active} uploading={uploading} saving={updatingAssets.has(selected.id)} editor={creating ? composer : undefined} taskControls={taskMenu}
       navigation={<AssetBrowserContent browser={browser} onOpen={open} compact selectedId={selected.id} />}
-      onBack={() => { tracking.reportAssetsClick('asset_detail', 'close_detail', { modality: selected.modality }); closePreview(); }} onVersion={id => { if (id !== versionId) tracking.reportAssetsClick('asset_detail', 'switch_version', { modality: selected.modality }); setVersionId(id); }} onUpdate={changes => update(selected.id, changes)} onEdit={edit}
+      onBack={() => { tracking.reportAssetsClick('asset_detail', 'close_detail', { modality: selected.modality }); closePreview(); }} onVersion={id => { if (id !== versionId) tracking.reportAssetsClick('asset_detail', 'switch_version', { modality: selected.modality }); setVersionId(id); onAssetRoute?.(selected.id, id); }} onUpdate={changes => update(selected.id, changes)} onEdit={edit}
       onReference={() => { tracking.reportAssetsClick('asset_detail', 'use_as_reference', { modality: selected.modality }); startDraft({ modality: selected.modality, prompt: '', references: [{ reference: { assetId: selected.id, versionId }, name: selected.name }] }); }}
+      onFirstFrame={studio?.useAsFirstFrame && selected.modality === 'image' && version ? () => studio.useAsFirstFrame?.({ reference: { assetId: selected.id, versionId: version.id }, name: selected.name }) : undefined}
       onOpenReference={reference => { void openReference(reference); }}
       onUpload={() => { tracking.reportAssetsClick('asset_detail', 'upload', { modality: selected.modality }); replace.current?.click(); }} onDownload={() => { tracking.reportAssetsClick('asset_detail', 'download_asset', { modality: selected.modality }); toast.showToast(t('Download started'), 'info'); }} /> : <>
     {creating && <div className="om-assets-view-switch" role="group" aria-label={t('Workspace assets')}><div className="om-choice-tabs">
-      <button className="om-nav-item" aria-pressed={mobileView === 'library'} onClick={() => setMobileView('library')}>{t('Asset library')}</button>
+      <button className="om-nav-item" aria-pressed={mobileView === 'library'} onClick={() => setMobileView('library')}>{t(hasGuide ? 'Guide & assets' : 'Asset library')}</button>
       <button className="om-nav-item" aria-pressed={mobileView === 'create'} onClick={() => setMobileView('create')}>{t('AI Create')}</button>
     </div></div>}
     <div className="om-assets-library">
+    {creating && layout === 'workbench' && <ResizablePane className="om-creator-pane" storageKey="motion-studio-controls-width" initial={378} min={310} max={650} edge="right" label={t('Resize creator')}>{composer}</ResizablePane>}
     <main ref={gallery} className="om-assets-main" onDragOver={e => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); }} onDrop={e => { if (e.dataTransfer.files.length) { e.preventDefault(); void importFiles(Array.from(e.dataTransfer.files), false, 'library_drop'); } }}>
-      <header className="om-assets-heading"><div><h1 className="om-title">{t(kind === 'trash' ? 'Trash' : 'Workspace assets')}</h1><p className="om-muted">{t('One library for every creation.')}</p></div><div className="om-asset-actions">{taskMenu}<button className="om-button" disabled={uploading} onClick={() => { tracking.reportAssetsClick('assets_library', 'upload'); upload.current?.click(); }}><RemixIcon name="upload-2-line" size={16} />{t(uploading ? 'Uploading…' : 'Upload')}</button><button className="om-button" data-primary onClick={create}><RemixIcon name="add-line" size={16} />{t('AI Create')}</button></div></header>
+      {studio ? <header className="om-assets-heading">{hasGuide ? <div className="om-choice-tabs" role="group" aria-label={t('Guide & assets')}>
+        <button className="om-nav-item" aria-pressed={guide} onClick={() => setStudioTab('guide')}>{t('How it works')}</button>
+        <button className="om-nav-item" aria-pressed={!guide} onClick={() => setStudioTab('library')}>{t('Asset library')}</button>
+      </div> : <h2 className="om-subtitle">{t('Images')}</h2>}<button className="om-button" disabled={uploading} onClick={() => upload.current?.click()}><RemixIcon name="upload-2-line" size={16} />{t(uploading ? 'Uploading…' : 'Upload')}</button></header> : <header className="om-assets-heading"><div><h1 className="om-title">{t(kind === 'trash' ? 'Trash' : 'Workspace assets')}</h1><p className="om-muted">{t('One library for every creation.')}</p></div><div className="om-asset-actions">{taskMenu}<button className="om-button" disabled={uploading} onClick={() => { tracking.reportAssetsClick('assets_library', 'upload'); upload.current?.click(); }}><RemixIcon name="upload-2-line" size={16} />{t(uploading ? 'Uploading…' : 'Upload')}</button><button className="om-button" data-primary onClick={create}><RemixIcon name="add-line" size={16} />{t('AI Create')}</button></div></header>}
 
-      <AssetBrowserContent browser={browser} hoverPreview={active} toolbar={<AssetGalleryToolbar browser={browser} onKindChange={next => { if (next !== kind) tracking.reportAssetsClick('assets_library', next === 'trash' ? 'trash_view' : 'kind_filter', { asset_kind: next }); setKind(next); }} />} onOpen={asset => { tracking.reportAssetsClick('assets_library', 'open_asset', { modality: asset.modality }); open(asset); }} onCreate={modality => { tracking.reportAssetsClick('assets_library', 'create_asset', { modality }); startDraft({ modality, prompt: '', references: [] }); }} />
+      {guide && studio ? <StudioIdeas destination={studio.destination} active={active} onPrompt={applyPrompt} /> : <AssetBrowserContent browser={browser} hoverPreview={active} emptyContent={studioEmpty} toolbar={studio ? (blankCanvas ? <></> : undefined) : <AssetGalleryToolbar browser={browser} onKindChange={next => { if (next !== kind) tracking.reportAssetsClick('assets_library', next === 'trash' ? 'trash_view' : 'kind_filter', { asset_kind: next }); setKind(next); }} />} onOpen={asset => { tracking.reportAssetsClick('assets_library', 'open_asset', { modality: asset.modality }); open(asset); }} onCreate={studio ? undefined : modality => { tracking.reportAssetsClick('assets_library', 'create_asset', { modality }); startDraft({ modality, prompt: '', references: [] }); }} />}
     </main>
-    {creating && <ResizablePane className="om-creator-pane" storageKey="motion-assets-creator-width" initial={460} min={340} max={800} edge="left" label={t('Resize creator')}>{composer}</ResizablePane>}
+    {creating && layout === 'canvas' && <div className="om-canvas-dock om-card">{composer}</div>}
+    {creating && !studio && <ResizablePane className="om-creator-pane" storageKey="motion-assets-creator-width" initial={460} min={340} max={800} edge="left" label={t('Resize creator')}>{composer}</ResizablePane>}
     </div>
     </>}
-    <input ref={upload} type="file" multiple accept="image/*,video/*,audio/*" hidden onChange={e => { void importFiles(Array.from(e.target.files ?? [])); e.target.value = ''; }} />
+    <input ref={upload} type="file" multiple accept={studio ? studio.destination.scene.modality + '/*' : 'image/*,video/*,audio/*'} hidden onChange={e => { void importFiles(Array.from(e.target.files ?? [])); e.target.value = ''; }} />
+    <input ref={referenceUpload} type="file" accept="image/*" hidden onChange={event => {
+      const file = event.currentTarget.files?.[0]; event.currentTarget.value = '';
+      if (!file || !studioForm) return;
+      if (file.type && !file.type.startsWith('image/')) { onError(t('Choose an image file.')); return; }
+      void importFiles([file], false, 'library_button', asset => {
+        if (asset.modality !== 'image') { onError(t('Choose an image file.')); return; }
+        const item = { reference: { assetId: asset.id, versionId: asset.currentVersionId }, name: asset.name };
+        setDraft(current => current.references === draft.references ? { ...current, references: [...current.references, item] } : current);
+      });
+    }} />
     <input ref={replace} type="file" accept={`${selected?.modality ?? 'image'}/*`} hidden onChange={e => { void importFiles(Array.from(e.target.files ?? []), true); e.target.value = ''; }} />
-    {active && picking && <AssetPicker revision={revision} onClose={() => setPicking(false)} onPick={(reference, asset) => { const items = mode === 'agent' ? agentReferences : draft.references;
+    {active && picking && <AssetPicker imageOnly={Boolean(studioForm)} revision={revision} onClose={() => setPicking(false)} onPick={(reference, asset) => { const items = mode === 'agent' ? agentReferences : draft.references;
       const references = [...items.filter(r => r.reference.assetId !== reference.assetId || r.reference.versionId !== reference.versionId), { reference, name: asset.name }];
       if (mode === 'agent') setAgentReferences(references); else setDraft({ ...draft, references }); setPicking(false); }} />}
     <StudioToastViewport {...toast} />

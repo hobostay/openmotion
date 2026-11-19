@@ -55,11 +55,22 @@ export async function checkDesign() {
     for (const match of value.matchAll(/var\((--motion-[\w-]+)/g)) assert.ok(names.has(match[1]), `Studio token ${name}: undefined ${match[1]}`);
   }
   for (const [theme, values] of Object.entries(tokens.themes) as [string, Record<string, string>][]) {
-    for (const [ink, surface] of [['text', 'shell'], ['text', 'workspace'], ['text', 'panel'], ['text', 'inset'], ['muted', 'panel'], ['dim', 'panel'], ['dim', 'bg'], ['accent', 'accent-soft'], ['on-action', 'action'], ['danger', 'danger-soft'], ['warning', 'warning-soft'], ['strong', 'highlight']]) {
+    const textPairs = [
+      ['text', 'shell'], ['text', 'workspace'], ['text', 'panel'], ['text', 'inset'],
+      ['muted', 'panel'], ['muted', 'workspace'], ['dim', 'panel'], ['dim', 'bg'], ['dim', 'raised'],
+      ['accent', 'accent-soft'], ['on-action', 'action'], ['on-action', 'action-hover'], ['text', 'accent-soft'],
+      ['danger', 'danger-soft'], ['warning', 'warning-soft'], ['strong', 'highlight'],
+      ['creative-image', 'raised'], ['creative-video', 'raised'], ['creative-audio', 'raised'], ['creative-agent', 'raised'],
+    ];
+    if (theme === 'dark') textPairs.push(['accent', 'chrome-active'], ['video-ink', 'accent'], ['placeholder', 'panel']);
+    for (const [ink, surface] of textPairs) {
       const a = luminance(values[ink]), b = luminance(values[surface]);
       assert.ok((Math.max(a, b) + .05) / (Math.min(a, b) + .05) >= 4.5, `${theme}: ${ink} on ${surface} needs 4.5:1 contrast.`);
     }
-    for (const [mark, surface] of [['status-on', 'bg'], ['status-on', 'panel'], ['status-on', 'nav-hover'], ['status-on', 'hover']]) {
+    for (const [mark, surface] of [
+      ['status-on', 'bg'], ['status-on', 'panel'], ['status-on', 'nav-hover'], ['status-on', 'hover'],
+      ['selected', 'workspace'], ['selected', 'raised'], ['selected', 'chrome-active'],
+    ]) {
       const a = luminance(values[mark]), b = luminance(values[surface]);
       assert.ok((Math.max(a, b) + .05) / (Math.min(a, b) + .05) >= 3, `${theme}: ${mark} on ${surface} needs 3:1 non-text contrast.`);
     }

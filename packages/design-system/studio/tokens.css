@@ -5,7 +5,7 @@
   --color-template-muted: var(--motion-dim);
   --color-template-line: var(--motion-gallery-border);
   --color-template-backdrop: var(--motion-overlay);
-  --color-template-focus: var(--motion-strong);
+  --color-template-focus: var(--motion-focus);
   --color-template-header-hover: var(--motion-hover);
   --color-template-selected-text: var(--motion-accent);
   --color-template-selected: var(--motion-accent-soft);
@@ -55,7 +55,7 @@
   --color-accent-hover: var(--motion-accent-hover);
   --color-on-accent: var(--motion-raised);
   --color-accent-ink: var(--motion-accent);
-  --color-ring: var(--motion-selected);
+  --color-ring: var(--motion-focus);
   --color-selection: var(--motion-accent);
   --color-playhead: var(--motion-strong);
   --color-danger: var(--motion-danger);

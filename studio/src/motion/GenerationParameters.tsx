@@ -8,6 +8,16 @@ import { useI18n } from '../i18n/I18n';
 
 export type ParameterDraft = { values: Record<string, unknown>; advanced: string };
 export const emptyParameters: ParameterDraft = { values: {}, advanced: '{}' };
+/** Map shot preferences to choices the current provider actually publishes. */
+export function shotParameters(model: Model, preferences?: { aspect: string; duration?: number }): ParameterDraft {
+  if (!preferences) return emptyParameters;
+  const values: Record<string, unknown> = {};
+  for (const field of model.generationOptions?.fields ?? []) {
+    const value = field.presentation === 'ratio' ? preferences.aspect : field.key === 'duration' ? preferences.duration : undefined;
+    if (value !== undefined && field.choices?.some(choice => choice.value === value && !choice.requires)) values[field.key] = value;
+  }
+  return { values, advanced: '{}' };
+}
 export function requestParameters(draft: ParameterDraft, model?: Model, hasInputImage = false): Record<string, unknown> {
   const extra = JSON.parse(draft.advanced);
   if (!extra || typeof extra !== 'object' || Array.isArray(extra)) throw new Error('Model parameters must be a JSON object');

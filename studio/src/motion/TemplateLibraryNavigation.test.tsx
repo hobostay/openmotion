@@ -110,6 +110,8 @@ it.each(['failed', 'pending'] as const)('allows installation-library dismissal w
 });
 
 it('still blocks dismissal while project creation is in flight and allows it after failure', async () => {
+  // The compatibility path uses the workspace's foreground creation guard.
+  sessionStorage.setItem('motion.template-handoff.preview', '0');
   let finish!: (response: Response) => void;
   workspace(false, { create: () => new Promise(resolve => { finish = resolve; }) });
   history.replaceState(null, '', '/?templates=1&embed=1');

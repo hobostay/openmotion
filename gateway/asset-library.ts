@@ -110,27 +110,30 @@ export class AssetLibrary {
       return asset;
     } catch (error) { await rm(path.dirname(target), { recursive: true, force: true }); throw error; }
   }
-  async importFile(sourcePath: string, input: { requestId: string; name: string; assetId?: string; parentVersionId?: string }) {
+  async importFile(sourcePath: string, input: { requestId: string; name: string; assetId?: string; parentVersionId?: string; expectedModality?: LibraryAsset['modality'] }) {
     if (typeof sourcePath !== 'string' || !path.isAbsolute(sourcePath)) throw new Error('A real absolute local file path is required');
     if (typeof input.requestId !== 'string' || !/^[\w-]{1,100}$/.test(input.requestId)) throw new Error('A stable requestId is required');
     assetName(input.name);
     await this.validateGeneration({ assetId: input.assetId, parentVersionId: input.parentVersionId });
     const prepared = await this.prepare(sourcePath);
     const requestHash = assetHash({ sha256: prepared.sha256, ...input });
-    try { return await this.store.lock(async () => {
-      const receipt = await this.file(`requests/${assetHash(input.requestId)}.json`);
-      const previous = await readFile(receipt, 'utf8').then(value => JSON.parse(value), (error: NodeJS.ErrnoException) => { if (error.code !== 'ENOENT') throw error; });
-      if (previous) {
-        if (previous.requestHash !== requestHash) throw new Error('REQUEST_ID_CONFLICT');
-        try { const saved = await this.get(previous.assetId); if (saved.versions.some(v => v.requestId === input.requestId)) return saved; }
-        catch (error) { if ((error as Error).message !== 'ASSET_NOT_FOUND') throw error; }
-      }
-      const id = previous?.assetId ?? input.assetId ?? randomUUID();
-      // Reserve the identity before committing bytes: an interrupted retry cannot duplicate an asset.
-      await atomicAssetJson(receipt, { requestHash, assetId: id });
-      return this.addLocked(prepared, { assetId: input.assetId, createId: id, name: input.name,
-        version: { source: 'upload', references: [], parentVersionId: input.parentVersionId, requestId: input.requestId, requestHash } });
-    }); } finally { await rm(prepared.file, { force: true }); }
+    try {
+      if (input.expectedModality && prepared.media.modality !== input.expectedModality) throw new Error('Unsupported media type');
+      return await this.store.lock(async () => {
+        const receipt = await this.file(`requests/${assetHash(input.requestId)}.json`);
+        const previous = await readFile(receipt, 'utf8').then(value => JSON.parse(value), (error: NodeJS.ErrnoException) => { if (error.code !== 'ENOENT') throw error; });
+        if (previous) {
+          if (previous.requestHash !== requestHash) throw new Error('REQUEST_ID_CONFLICT');
+          try { const saved = await this.get(previous.assetId); if (saved.versions.some(v => v.requestId === input.requestId)) return saved; }
+          catch (error) { if ((error as Error).message !== 'ASSET_NOT_FOUND') throw error; }
+        }
+        const id = previous?.assetId ?? input.assetId ?? randomUUID();
+        // Reserve the identity before committing bytes: an interrupted retry cannot duplicate an asset.
+        await atomicAssetJson(receipt, { requestHash, assetId: id });
+        return this.addLocked(prepared, { assetId: input.assetId, createId: id, name: input.name,
+          version: { source: 'upload', references: [], parentVersionId: input.parentVersionId, requestId: input.requestId, requestHash } });
+      });
+    } finally { await rm(prepared.file, { force: true }); }
   }
   async update(id: string, input: { name?: string; trashed?: boolean; currentVersionId?: string }) {
     if (!input || Object.keys(input).some(key => !['name', 'trashed', 'currentVersionId'].includes(key))) throw new Error('Invalid asset update');

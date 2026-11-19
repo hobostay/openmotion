@@ -130,6 +130,19 @@ describe("Dock on React 19", () => {
     expect(useDockLayoutStore.getState().openPanels).toEqual(new Set(DEFAULT_OPEN));
   });
 
+  it("keeps the preview header controls mounted when the timeline becomes active", async () => {
+    const host = mount("p1");
+    const { activatePanel } = useDockLayoutStore.getState();
+    await act(async () => activatePanel("preview"));
+    const previewHeader = host.querySelector('[data-panel-header-controls="preview"]');
+    expect(previewHeader).not.toBeNull();
+
+    await act(async () => activatePanel("timeline"));
+    expect(dockApi?.activePanel?.id).toBe("timeline");
+    expect(host.querySelector('[data-panel-header-controls="preview"]')).toBe(previewHeader);
+    expect(previewHeader?.closest(".hf-dock-strip-actions")).toBeNull();
+  });
+
   it("persists a layout change per project and reads it back through the schema", () => {
     mount("p1");
     act(() => useDockLayoutStore.getState().closePanel("renders"));

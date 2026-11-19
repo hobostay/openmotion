@@ -1,6 +1,8 @@
 import { useCallback, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { PlayerControls } from "../../player";
 import { useMvpEditor } from "../../motion/StudioHost";
+import { PreviewCanvasMenu } from "../../motion/PreviewCanvasMenu";
 import type { TimelineElement } from "../../player";
 import { useDockHeaderSlot } from "../dock/DockHeaderSlots";
 import { PreviewEmptyState } from "./PreviewEmptyState";
@@ -125,6 +127,7 @@ export function PreviewPane({
       data-studio-fullscreen-target=""
       data-controls-hidden={controlsHidden || undefined}
     >
+      {previewHeader && !isFullscreen && createPortal(<PreviewCanvasMenu />, previewHeader)}
       <div
         className={`flex-1 min-h-0 relative overflow-hidden ${mvp && !isFullscreen ? "motion-preview-viewport" : ""}`}
         data-preview-pan-surface="true"

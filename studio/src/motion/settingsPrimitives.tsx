@@ -7,6 +7,11 @@ import { RemixIcon } from '../icons/RemixIcons';
 import { useI18n } from '../i18n/I18n';
 import { Skeleton } from '../components/ui/Skeleton';
 
+// Version media-model artwork with the Studio bundle, including on already-running editor servers.
+const modelArtwork = import.meta.glob<string>('../../../packages/design-system/providers/models/*.svg', {
+  eager: true, import: 'default', query: '?url&no-inline',
+});
+
 export function SettingsLoading() {
   const { t } = useI18n();
   return <div className="om-settings-loading" role="status" aria-label={t('Loading settings…')}><Skeleton style={{ width: '40%', height: 28 }} /><Skeleton style={{ width: '100%', height: 120 }} /><Skeleton style={{ width: '100%', height: 180 }} /></div>;
@@ -31,7 +36,7 @@ export function Toggle({ label, checked, disabled, onChange }: { label: string; 
 export function ProviderAvatar({ name, provider }: { name: string; provider?: Pick<ProviderConnection, 'id' | 'custom'> }) {
   const [failed, setFailed] = useState<string>();
   const icon = provider && !provider.custom ? (providerIcons as Record<string, { file?: string; padded?: boolean; symbol?: string }>)[provider.id] : undefined;
-  const src = icon?.file ? designSystemAsset(icon.file) : undefined;
+  const src = icon?.file ? modelArtwork[`../../../packages/design-system/${icon.file}`] ?? designSystemAsset(icon.file) : undefined;
   return <span className="om-avatar om-provider-avatar" data-brand={Boolean(src && failed !== src)} aria-hidden="true">
     {src && failed !== src ? <img src={src} alt="" draggable={false} data-padded={icon?.padded || undefined} onError={() => setFailed(src)} />
       : icon?.symbol ? <RemixIcon name={icon.symbol} size={22} /> : name.slice(0, 2).toUpperCase()}

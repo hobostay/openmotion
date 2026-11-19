@@ -1,5 +1,7 @@
 # OpenMotion tracking
 
+Catalog guide pages emit `template_guide_interaction` through the existing Studio transport and privacy preference. `template_id` always identifies the page being used, with a fresh `view_id`; actions are `shown`, `edit`, `chapter`, `reference`, `reset`, `copy`, `open_editor`, `download`, `document` and `source`. Document toggles include `expanded`; source links record intent. Download results distinguish `browser_save_requested` from `fetch_failed`, and never confirm disk persistence. Editor entry reports intent separately from its result. `shown` requires at least half of the preview visible for one continuous foreground second. Edits report only `title` or `accent`, never their values. Copy and editor actions report success, failure or manual fallback separately. The embedding parent pins the template identity and validates the closed event fields. This measures interaction and handoff, not user acceptance, export or reference-recreation completion. Local tests do not establish production collection.
+
 An explicit-event package shared by the standalone MCP runtime and Motion Studio.
 It has no runtime dependencies. The application consumes its TypeScript sources;
 `npm run build:tracking` emits JavaScript and declarations for a local `npm pack`
@@ -467,6 +469,32 @@ backend/data directory. Deterministic coverage lives in
   exposure waits until at least 1% of its text enters the viewport in a visible tab, once per
   detail view. Recreate and Recreate-and-submit carry the same `copy_attempt_id`
   on their `start_use` click and copy result; Open-and-edit has no copy attempt.
+  `library_view_id` identifies an opening, `discovery_id` groups search and
+  recovery activity (reset on reopening or after 30 minutes of inactivity),
+  and `result_set_id` names the results for the current search, filter and sort
+  context. A search can also settle when submitted or used, but not during IME
+  composition. Recovery exposure requires the expanded panel to intersect a
+  visible viewport. `template_search_handoff_result` tracks an instruction
+  copy attempt with a fixed source kind and status. A manual-copy fallback
+  remains distinct from `clipboard_written`. In the library, the reference entry
+  emits `surface_view` with `element=reference` once per result set when at least
+  half of the button is visible for one second, or when clicked sooner. Count
+  distinct `result_set_id` on this view and the corresponding reference click
+  for entry click-through. Reference source changes, opening the local file
+  picker and copy attempts use `ui_click` with the fixed `source_kind`.
+  A selected file produces one `studio_asset_import_result` with
+  `entry_point=template_reference` and `outcome=success|failure|unknown`.
+  Cancelling the picker produces no import result. Unknown uploads do not count
+  as failures. Events from the home entry carry `reference_entry=library_home`;
+  search recovery keeps its existing attribution. Using the home action does
+  not emit a search. File names, paths, asset and version IDs, reference links,
+  descriptions and contact details are excluded from these events. Copying a
+  request does not confirm Agent execution. Template request intake is not exposed.
+    The enhanced handoff detail reuses the same click/copy-result events rather than
+  skipping them because its layout flag is active. Clipboard failure reports
+  `manual_fallback_shown`, and editable-project preparation reports `open_edit`.
+  The isolated local review entry disables collection without removing those
+  instrumentation calls. Project/source continuation remains a separate gap.
 
 The adapter preserves fixed actions, counts, booleans and safe catalog/control
 identifiers. It drops messages/stacks, file paths, selectors, composition/block
@@ -524,3 +552,40 @@ A local save retry can update the terminal result for the same job. Use the late
 Generation uses the existing telemetry preference and installation identity.
 
 Studio recovery keeps request acknowledgement separate from execution outcome. An uncertain export receipt reports `studio_export_request_result.outcome=unknown`; a later identity-matched lookup can report one terminal result with the same browser `export_id`. Progress loss, cancelling and an inactive unknown record never produce a failed or cancelled terminal event. `studio_asset_import_result` retains its entry-point categories and reports confirmed failure, unknown and pending counts separately; unknown/pending items are not counted as failed. The manual `reload_editor` recovery action records only an unknown handoff outcome, not confirmed recovery.
+
+## Template detail handoff coverage
+
+The approved detail is enabled from the normal template-library entry. The legacy
+`templateHandoffPreview=0` compatibility switch can restore the previous detail
+for a session; no query parameter is needed for the new flow.
+
+| Question | Event and trigger | Join and deduplication |
+| --- | --- | --- |
+| Did someone inspect related options? | `surface_view` for `template_related/related` after its first eligible card impression; `template_card/card` for each related card | At least 50% visible for one uninterrupted second in a visible tab; once per source detail and card. Related cards and clicks include `source_template_id`, target `template_id`, source `detail_view_id` and displayed `position`. |
+| Was guidance or help used? | `ui_click`: `view_guide`, `back_to_template`, `view_full_page`, `handoff_help`, `copy_color`, `back_to_project`, `close_detail`; `surface_view` `template_guide/guide` when the same-dialog guide opens | The current template and detail-view UUID; a help opening counts once per opening, not per pointer move. Color clicks never carry a color value. |
+| Did editable handoff resolve and open? | `ui_click/start_use` for `open_edit`, followed by `template_project_result` on observed `create`, `reconcile` or `open` completion | The click and results share the stable `operation_id` for the guarded request; fresh `handoff_attempt_id` per operation attempt; captured initiating detail; confirmed project UUID only. |
+
+Create-stage success means the preparation call resolved to an exact project,
+including recovery of the same request; it is not a count of newly created projects.
+An interrupted response is `unknown`; an authoritative empty lookup is
+`not_found`; a failed lookup remains `unknown`. Opening is successful only when
+the project-opening callback confirms it. Retrying an existing project never emits
+another create result. `retry_template_project`, `check_template_project` and
+`open_prepared_project` distinguish explicit recovery intents.
+An opening callback is not evidence that a particular content version became
+visible or that the user approved it; those downstream outcomes remain separate.
+Editor save-guard rejection occurs before creation and reports a confirmed failure,
+not an uncertain server result. An authoritative empty reconciliation enables
+retry with the same request ID. Pending request identities are retained in bounded
+session storage so reopening the library checks that request before creating;
+completed requests are removed from the pending list. Unavailable storage cannot
+guarantee retention after a reload.
+
+Existing copy semantics remain: `clipboard_written` is the only successful copy,
+and manual fallback is not success. No event claims that an external Agent received
+the copied instruction, created a film, or exported it. Exact copy-to-Agent-to-work
+provenance is not added by this change; do not infer adoption or output rates from
+copying. No titles, material names, instructions, color values, URLs or raw errors
+are admitted. Existing consent, browser admission and product=openmotion filtering
+remain in force. UI tests use fake senders; live readback requires env=test and an
+isolated test-run UUID.

@@ -49,7 +49,7 @@ try {
   page = await browser.newPage(); page.on('pageerror', error => errors.push(error.message));
   await page.setViewport({ width: 1440, height: 1000 });
   await page.evaluateOnNewDocument(() => { localStorage.setItem('motion.studio.locale', 'en'); });
-  await page.goto(origin, { waitUntil: 'domcontentloaded' });
+  await page.goto(new URL('/?page=editor', origin).href, { waitUntil: 'domcontentloaded' });
   const clickText = async (selector, text) => {
     const handle = await page.waitForFunction((selector, text) => [...document.querySelectorAll(selector)].find(node => {
       const label = node.cloneNode(true);
@@ -100,7 +100,7 @@ try {
     assert(await page.$('.om-settings-dialog'));
     await clickText('.om-dialog-actions button', 'Cancel'); await page.waitForSelector('.om-settings-dialog', { hidden: true });
   };
-  await page.waitForSelector('.om-app-rail');
+  await page.waitForSelector('.om-app-header');
   await page.waitForSelector('[data-studio-control="playback"]:not(:disabled)', { visible: true });
   await page.click('[data-studio-control="playback"]');
   await page.waitForFunction(() => document.querySelector('[data-studio-control="playback"]')?.getAttribute('aria-label') === 'Pause');
@@ -152,7 +152,7 @@ try {
   await settings('Default Agent & models'); await shot('default-models-light');
   await page.click('[aria-label="Select model"]'); await page.waitForSelector('.om-model-picker');
   await shot('model-picker-light'); await page.keyboard.press('Escape');
-  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForSelector('.om-app-rail');
+  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForSelector('.om-app-header');
   await page.keyboard.down('Control'); await page.keyboard.press(','); await page.keyboard.up('Control');
   // The shortcut replaces the URL-restored section; its old controls can still be mounted until navigation commits.
   await page.waitForSelector('.om-settings-main[aria-label="General"]', { visible: true });

@@ -190,7 +190,7 @@ async function invokeRpc(message: any, store: WorkspaceStore, registry: ReturnTy
         const normalized = response.ok && transportName === 'openmotion_get_project' && transportArgs.workId ? normalizeInlineResult(raw) : undefined;
         const value = publicToolResult(normalized?.structuredContent ?? raw);
         if (!response.ok) throw Object.assign(new Error(value.error || 'Tool failed'), {
-          code: value.code, details: value.runtime, invalid_field: value.invalid_field, validation_rule: value.validation_rule,
+          code: value.code, details: value.runtime, invalid_field: value.invalid_field, validation_rule: value.validation_rule, ...(value.applied === false ? { applied: false } : {}),
         });
         if (finalVideo && (!value.inlineWork?.playable || value.inlineWork.state !== 'completed' || !normalized?._meta?.inlineVideo?.video))
           throw new Error('FINAL_VIDEO_NOT_READY: Display only after the MP4 export completes and passes verification');
@@ -223,7 +223,7 @@ async function invokeRpc(message: any, store: WorkspaceStore, registry: ReturnTy
       return result({ isError: true, content: [{ type: 'text', text: message }], structuredContent: { error: { code, message,
         ...(invalid_field ? { invalid_field, validation_rule } : {}),
         ...(runtimeFailure && (error as any).details ? { details: (error as any).details } : {}),
-        applied: runtimeFailure || /^(NATIVE_RUNTIME_NOT_READY|INVALID_|VERSION_CONFLICT|VERSION_NOT_RESTORABLE|PROJECT_NOT_|PROJECT_SESSION_|REQUEST_ID_CONFLICT|MCP_TOOL_NOT_EXPOSED|EXPORT_NOT_|TEMPLATE_NOT_)/.test(code) ? false : 'unknown' } } });
+        applied: (error as any).applied === false || runtimeFailure || /^(NATIVE_RUNTIME_NOT_READY|INVALID_|VERSION_CONFLICT|VERSION_NOT_RESTORABLE|PROJECT_NOT_|PROJECT_SESSION_|REQUEST_ID_CONFLICT|MCP_TOOL_NOT_EXPOSED|EXPORT_NOT_|TEMPLATE_NOT_)/.test(code) ? false : 'unknown' } } });
     }
   }
   return { jsonrpc: '2.0', id: message.id, error: { code: -32601, message: 'Method not found' } };

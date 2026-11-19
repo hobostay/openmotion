@@ -26,9 +26,9 @@ export function MotionApp() {
   const { t } = useI18n();
   const [route, setRoute] = useState(() => ({ projectId: requestedProject(location.search, location.hash), sessionId: new URLSearchParams(location.search).get('session') }));
   const { projectId, sessionId } = route;
-  const [settingsPage, setSettingsPage] = useState(() => isWorkspaceSettingsPage(location.search));
+  const [settingsPage, setSettingsPage] = useState(() => isWorkspaceSettingsPage(location.search, location.hash));
   useEffect(() => {
-    const sync = () => setSettingsPage(isWorkspaceSettingsPage(location.search));
+    const sync = () => setSettingsPage(isWorkspaceSettingsPage(location.search, location.hash));
     window.addEventListener(WORKSPACE_LOCATION_CHANGED, sync);
     return () => window.removeEventListener(WORKSPACE_LOCATION_CHANGED, sync);
   }, []);
@@ -90,7 +90,7 @@ export function MotionApp() {
     sessionId={libraryOnly ? undefined : ready?.sessionId ?? sessionId ?? undefined} onNavigate={onNavigate}
     blocked={!ready && !error && !libraryOnly && !settingsPage} onLibraryClose={libraryOnly ? closeLibrary : undefined}>
     <div ref={surface} className="motion-project-surface">
-    {error ? <RecoveryScreen title={t('Could not open project')} message={error}><button className="om-button" data-primary onClick={() => retry(value => value + 1)}>{t('Retry')}</button><a className="om-button" href="/">{t('Open active project')}</a></RecoveryScreen>
+    {error ? <RecoveryScreen title={t('Could not open project')} message={error}><button className="om-button" data-primary onClick={() => retry(value => value + 1)}>{t('Retry')}</button><a className="om-button" href="/?page=editor">{t('Open active project')}</a></RecoveryScreen>
       : ready ? ready.artifact ? <ArtifactViewer key={ready.artifact.projectId} artifact={ready.artifact} loadingLayout={loadingLayout} /> : <div className="motion-route-state"><WorkspaceMenuButton />{t('Create a project with your Agent to start editing.')}</div>
       : libraryOnly ? <TemplateLibraryLanding /> : <EditorLoading layout={loadingLayout} />}
     </div>

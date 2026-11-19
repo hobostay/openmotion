@@ -39,7 +39,7 @@
 .om-media-detail-website { color: var(--color-template-text); text-decoration: none; border-radius: var(--motion-radius-md); }
 .om-media-detail-website > svg { flex: none; color: var(--color-template-muted); }
 .om-media-detail-website:hover strong { text-decoration: underline; text-underline-offset: var(--motion-space-4); }
-.om-media-detail-website:focus-visible { outline: 2px solid var(--color-template-focus); outline-offset: var(--motion-space-4); }
+.om-media-detail-website:focus-visible { outline: 1px solid var(--motion-focus); outline-offset: 1px; }
 .om-media-detail-source { display: grid; place-items: center; border: 1px solid var(--color-template-line); border-radius: var(--motion-radius-full); width: var(--motion-control); height: var(--motion-control); flex: none; color: var(--color-template-text); }
 .om-media-detail-source:hover { background: var(--color-template-hover); }
 .om-media-detail-actions { display: grid; gap: var(--motion-space-8); margin: 18px 0 var(--motion-space-12); }

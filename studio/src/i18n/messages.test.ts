@@ -5,11 +5,25 @@ import errorUi from './error-ui.json';
 import settingsUi from './settings-ui.json';
 import templateUi from './template-ui.json';
 import mcpUi from './mcp-ui.json';
+import studioNavigationUi from './studio-navigation-ui.json';
 import { mcpFaq } from '../motion/mcpCapabilities';
 import { errorNoticeMessage } from '../components/ui/errorNoticeMessage';
 import { historyEntryLabel } from './historyMessages';
 
 describe('editor language resources', () => {
+  it('keeps Studio navigation and handbook messages complete in each supported locale', () => {
+    const keys = Object.keys(studioNavigationUi['zh-CN']).sort();
+    for (const { locale } of languages) {
+      if (locale === 'en') continue;
+      const entries = studioNavigationUi[locale];
+      expect(Object.keys(entries).sort(), locale).toEqual(keys);
+      for (const [message, translation] of Object.entries(entries)) {
+        expect(translation.trim(), `${locale}: ${message}`).not.toBe('');
+        expect(translation.match(/openmotion_\w+/g) ?? []).toEqual(message.match(/openmotion_\w+/g) ?? []);
+      }
+    }
+  });
+
   it('translates the current recreation FAQ without retaining its superseded answer', () => {
     const answer = mcpFaq.find(([question]) => question === 'Can I recreate a reference video?')![1];
     for (const { locale } of languages.filter(language => language.locale !== 'en')) {

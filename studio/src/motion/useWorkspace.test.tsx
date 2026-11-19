@@ -188,6 +188,7 @@ it('an existing project page polls its own project without following another cli
   expect(fetcher.mock.calls.some(([url]) => url === `/motion-api/project/status?projectId=${first}`)).toBe(true);
 });
 it('an empty conversation opens its own first artifact even when another project is globally active', async () => {
+  history.replaceState(null, '', '/?session=conversation');
   const replace = vi.spyOn(window.location, 'replace').mockImplementation(() => {});
   fetcher.mockImplementation(async (url: string) => Response.json(url.endsWith('/projects')
     ? { projects: [], sessions: [{ id: 'conversation', artifacts: [{ id: 'artifact-a', projectId: first }], activeArtifactId: 'artifact-a' }] }
@@ -226,6 +227,7 @@ it('creates the conversation before generating an artifact and retains it when g
   expect(sessionStorage.getItem('opendesign.session-error:new-session')).toBe('Generation failed');
 });
 it('activates the viewer when an external Agent produces an artifact for an open empty conversation', async () => {
+  history.replaceState(null, '', '/?session=conversation');
   const replace = vi.spyOn(window.location, 'replace').mockImplementation(() => {});
   const original = fetcher.getMockImplementation()!;
   fetcher.mockImplementation(async (url: string, init?: RequestInit) => url.endsWith('/projects') ? new Response(JSON.stringify({ projects: [], sessions: [{ id: 'conversation', artifacts: [{ id: 'artifact', projectId: first }] }] })) : original(url, init));

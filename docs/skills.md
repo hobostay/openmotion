@@ -24,6 +24,8 @@ The [native engine boundary](../skills/openmotion-production/references/native.m
 
 可选 [`design-styles`](../library/skills/openmotion-design-styles/SKILL.md) 是设计风格库：21 张风格卡（包豪斯、瑞士国际主义、构成主义、孟菲斯、新粗野主义、装饰艺术、水墨、新浪潮等）和 2 张布局卡（便当盒、瀑布流），每张写明色板、开源字体、五条规则、标志性动法和要避免的做法。Agent 选卡后写 `plan.json`，由 `scripts/style.mjs check` 校验颜色、文字长度、动法和片尾署名，再用 `fonts` 按画面文字下载子集字体，最后按风格规则搭 HyperFrames 工程。它是 Library 内容，不注册为 MCP resource，也不改变五个核心制作入口。
 
+可选节日大促三件套：[`sale-promo`](../library/skills/openmotion-sale-promo/SKILL.md) 把一个优惠做成 10 或 15 秒促销短片（折扣大字 → 原价划线后新价落定 → 优惠码与真实截止时间 → 行动按钮）；[`sale-countdown`](../library/skills/openmotion-sale-countdown/SKILL.md) 用发布时间和开售或截止时间算出真实剩余天数或小时，做巨型数字倒计时预告（商品浮在数字前）；[`sale-carousel`](../library/skills/openmotion-sale-carousel/SKILL.md) 把 3～7 个促销商品做成 3D 封面流轮播、最后扇形收齐的视频。三者的价格、折扣率和剩余时间都由脚本从原始数据算出，`--check` 会拒绝自相矛盾的价格、已过期的截止时间和放不下的文字；默认 9:16，也可出 4:5、1:1、16:9。做法参考 MIT 许可的 iart-ai 开源 Skill，按 OpenMotion 的 HTML 工程重写。它们是 Library 内容，不自动注册到 MCP。
+
 可选的 96 个单风格配方 Skill 各提供一种画面风格或剪辑方法，清单见 [Library 风格配方](../library/README.zh-CN.md#style-recipes)。每个都在 Studio Skills 页有一张卡片和一支 OpenMotion 样片封面；配方本身尚无可执行模板或用户素材实跑对比；它们不注册 MCP，也不改变核心制作入口。
 
 2026-11-06：五个入口统一为 motion- 前缀，视频转模板纳入一期插件、四宿主薄适配器与 MCP Resources。同时融合已评审的通用工程入口方案，保留原制作实现和导演质量参考；同时保留 main PR #28 的实际复刻流程、独立参考和测量脚本。历史多轮实验记录见下文，其证据不自动覆盖本次命名与分发变更。

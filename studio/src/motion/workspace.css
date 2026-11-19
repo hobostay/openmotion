@@ -139,7 +139,7 @@
 .motion-conversation-scroll { overflow: auto; flex: 1; min-height: 0; padding: 20px 16px; }
 .motion-conversation-message { margin-bottom: 24px; }
 .motion-conversation-message-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: var(--motion-text-step-10); color: var(--motion-dim); }
-.motion-conversation-message p { padding: 12px 14px; border-radius: var(--motion-radius-lg) var(--motion-radius-lg) var(--motion-radius-xs) var(--motion-radius-lg); background: var(--motion-action); color: var(--motion-on-action); font-size: var(--motion-text-sm); line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0 0 4px; }
+.motion-conversation-message p { padding: 12px 14px; border-radius: var(--motion-radius-lg) var(--motion-radius-lg) var(--motion-radius-xs) var(--motion-radius-lg); background: var(--motion-accent-soft); color: var(--motion-text); font-size: var(--motion-text-sm); line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0 0 4px; }
 .motion-conversation-message > button { font-size: var(--motion-text-step-10); height: 26px; }
 .motion-conversation-message[data-role="assistant"] p { background: var(--motion-inset); color: var(--motion-text); border-radius: var(--motion-radius-lg) var(--motion-radius-lg) var(--motion-radius-lg) var(--motion-radius-xs); }
 .motion-conversation-project { display: flex; align-items: center; gap: 12px; width: 100%; border: 1px solid var(--motion-border); border-radius: var(--motion-radius-step-9); background: transparent; color: var(--motion-text); text-align: left; padding: 14px 12px; cursor: pointer; }

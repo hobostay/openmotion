@@ -27,14 +27,14 @@
 .om-gallery-card-source > svg { flex: none; }
 .om-gallery-card-source:hover { color: var(--color-template-text); background: var(--color-template-hover); text-decoration: none; }
 .om-gallery-card-source:hover .om-gallery-source-caption strong { text-decoration: underline; text-underline-offset: var(--motion-space-4); }
-.om-gallery-card-source:focus-visible { outline: 2px solid var(--color-template-focus); outline-offset: 2px; }
+.om-gallery-card-source:focus-visible { outline: 1px solid var(--motion-focus); outline-offset: 1px; }
 .om-gallery-card-caption { min-width: 0; flex: 1; opacity: 0; transform: translateY(4px); }
 .om-gallery-card-caption strong, .om-gallery-card-caption small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .om-gallery-card-caption strong { font-size: var(--motion-text-md); font-weight: var(--motion-weight-medium); line-height: var(--motion-leading-body); }
 .om-gallery-card-caption small { font-size: var(--motion-text-xs); opacity: .75; }
 .om-gallery-card-arrow { flex: 0 0 28px; width: 28px; height: 28px; border-radius: var(--motion-radius-full); background: var(--motion-overlay-ink); color: var(--motion-video-ink); display: grid; place-items: center; opacity: 0; }
 .om-gallery-cover:is(:hover, :focus-visible) :is(.om-gallery-card-shade, .om-gallery-card-top, .om-gallery-card-caption, .om-gallery-card-arrow) { opacity: 1; transform: none; }
-.om-gallery-cover:focus-visible { outline: 2px solid var(--color-template-focus); outline-offset: 3px; }
+.om-gallery-cover:focus-visible { outline: 1px solid var(--motion-focus); outline-offset: 1px; }
 @media (prefers-reduced-motion: no-preference) {
   .om-gallery-cover > video, .om-gallery-poster img, .om-gallery-card-shade, .om-gallery-card-top, .om-gallery-card-caption { transition: opacity var(--motion-duration-normal), transform var(--motion-duration-normal); }
 }

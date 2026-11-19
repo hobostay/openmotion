@@ -18,7 +18,6 @@ export type WorkspaceChrome = {
   toggleSidebar: () => void;
   sidebarOpen: boolean;
   navigationCollapsed: boolean;
-  toggleNavigation: () => void;
   settingsOpen?: boolean;
   registerEditor: (guard: EditorGuard | null) => void;
   beforeViewChange: () => Promise<void>;

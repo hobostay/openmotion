@@ -318,7 +318,7 @@ jobs:
           node --test tests/brand-extraction.browser.test.ts tests/brand-showcase.browser.test.ts
       - name: Repository template runtime regression
         if: steps.scope.outputs.full == 'true'
-        run: node --test tests/repository-template-runtime.test.ts tests/hosted-template-catalog.test.ts tests/template-prompts.test.ts tests/integration-setup.test.ts
+        run: node --test tests/repository-template-runtime.test.ts tests/hosted-template-catalog.test.ts tests/template-guide.test.ts tests/template-prompts.test.ts tests/integration-setup.test.ts
       - name: Workspace, wrapper and session regression
         if: steps.scope.outputs.full == 'true'
         timeout-minutes: 10
@@ -450,12 +450,39 @@ jobs:
           version=$(node scripts/test-package.mjs version "$GITHUB_RUN_NUMBER" "${GITHUB_RUN_ATTEMPT:-1}")
           if [ "$PACKAGE_FORMAT" = npm ]; then
             node scripts/package-npm.mjs "dist/$version" "$version" --template-env="$TEMPLATE_ENVIRONMENT"
+            bytes=$(wc -c < "dist/$version/openmotion-app-$version.tgz" | tr -d '[:space:]')
+            printf '## npm install package\n\nCompressed size: %s bytes\n' "$bytes" >> "$GITHUB_STEP_SUMMARY"
           else
             for target in mac-arm64 win-x64; do
               node scripts/test-package.mjs prepare "$target"
               node scripts/test-package.mjs build "$target" "$version" --template-env="$TEMPLATE_ENVIRONMENT"
             done
           fi
+      - name: Report default npm package size and enforce its budget
+        if: steps.scope.outputs.full == 'true' && (inputs.format || 'npm') == 'npm'
+        env:
+          TEMPLATE_ENVIRONMENT: ${{ inputs.template_environment || 'dev' }}
+        run: |
+          version=$(node scripts/test-package.mjs version "$GITHUB_RUN_NUMBER" "${GITHUB_RUN_ATTEMPT:-1}")
+          baseline=()
+          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+            base_tree="$RUNNER_TEMP/package-size-base"
+            base_output="$RUNNER_TEMP/package-size-base-dist"
+            # The first parent is the exact target commit used to build this PR merge tree.
+            if git worktree add --detach "$base_tree" HEAD^1 && (
+              cd "$base_tree" &&
+              npm ci --no-audit --no-fund &&
+              npm run build:studio &&
+              node scripts/package-npm.mjs "$base_output" "$version" --template-env="$TEMPLATE_ENVIRONMENT"
+            ) > "$RUNNER_TEMP/npm-package-baseline.log" 2>&1; then
+              baseline=(--baseline "$base_output/openmotion-app-$version.tgz")
+            else
+              echo "::warning::Could not build the PR baseline. The candidate size and budget are still checked."
+              tail -40 "$RUNNER_TEMP/npm-package-baseline.log" 2>/dev/null || true
+              echo 'Package baseline unavailable. Reporting candidate size only.' >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+          python3 .github/scripts/npm-package-size.py "dist/$version/openmotion-app-$version.tgz" "${baseline[@]}"
       - name: Generate candidate installation guide
         if: steps.scope.outputs.full == 'true' && (inputs.format || 'npm') == 'npm' && (inputs.template_environment || 'dev') == 'dev'
         run: |

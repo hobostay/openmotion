@@ -5,8 +5,6 @@
 
 body { font-family: var(--motion-font-sans); font-size: var(--motion-text-md); }
 button, input, select, textarea { font-family: inherit; }
-:root[data-motion-ui] :focus-visible { outline: 1px solid var(--motion-border-strong); outline-offset: 1px; }
-:root[data-motion-ui] [data-panel-search-input]:focus-visible { outline: none; }
 .hf-dock { --dv-tabs-and-actions-container-height: 34px; --dv-tab-font-size: var(--motion-text-sm); --dv-tabs-and-actions-container-font-size: var(--motion-text-sm); }
 .hf-dock .dv-tabs-and-actions-container { padding: 0 6px; align-items: center; }
 /* Keep selected labels legible even when Dockview injects its theme rules later. */
@@ -284,6 +282,7 @@ button, input, select, textarea { font-family: inherit; }
   }
   .motion-timeline-toolbar > .motion-timeline-toolbar > div > div,
   .motion-timeline-media-actions { flex-shrink: 0; }
+  .motion-timeline-icon-controls > div > div { max-inline-size: 100%; flex-wrap: wrap; }
 }
 
 @container (max-width: 420px) {

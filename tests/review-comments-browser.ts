@@ -377,7 +377,8 @@ test('real review workflow preserves element context, clipboard fallback and Age
     await reviewComments(store, { action: 'comments', operation: 'update', projectId: 'project', commentId: annotated.id, expectedCommentRevision: 1, status: 'resolved', requestId: 'annotation-done' });
     await page.waitForFunction(() => !document.querySelector('[data-review-annotation-canvas]'), { timeout: 12000 });
     await reviewComments(store, { action: 'comments', operation: 'delete', projectId: 'project', commentId: annotated.id, expectedCommentRevision: 2, requestId: 'annotation-cleanup' });
-    await button(page, 'MCP'); await button(page, 'Connection help');
+    await page.locator('.motion-project-agent-trigger[aria-label="MCP"]').click();
+    await button(page, 'Connection help');
     await page.waitForSelector('#mcp-capabilities');
     await page.evaluate(() => { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (text: string) => { document.documentElement.dataset.copiedReview = text; } } }); });
     const example = await page.evaluateHandle(() => [...document.querySelectorAll('#mcp-capabilities article')]

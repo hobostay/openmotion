@@ -27,7 +27,7 @@ export const labels = {
 };
 export const colorGroups = [
   { title: '中性色', note: '背景、边框与文字，共同构成界面的基本层次。', keys: ['bg', 'panel', 'raised', 'inset', 'hover', 'border', 'border-strong', 'strong', 'text', 'muted', 'dim', 'placeholder'] },
-  { title: '品牌与交互', note: '中性操作与克制的绿色，表达状态和重点。', keys: ['brand', 'accent', 'accent-hover', 'accent-soft', 'brand-soft', 'highlight', 'action', 'action-hover', 'on-action', 'selected'] },
+  { title: '品牌与交互', note: '黄绿色标识主要操作、当前选项和键盘焦点。', keys: ['brand', 'accent', 'accent-hover', 'accent-soft', 'brand-soft', 'highlight', 'action', 'action-hover', 'on-action', 'selected'] },
   { title: '功能色', note: '让成功、警告和错误拥有明确的语义。', keys: ['success', 'status-on', 'danger', 'danger-soft', 'warning', 'warning-soft'] },
 ];
 export const components = [

@@ -1,3 +1,6 @@
+import type { Model } from '../../../shared/gateway';
+import { isWorkspaceSettingsPage } from '../../../shared/workspace-url';
+import { creativeStudios, studioScenes, sceneDestination, modelDestination } from './creativeStudios';
 import { expect, it } from 'vitest';
 import { readWorkspacePage, settingsSections, workspacePageHref } from './workspacePageRouting';
 
@@ -69,4 +72,90 @@ it('keeps entry_from while switching settings sections and clears it when leavin
   expect(skills.searchParams.has('entry_from')).toBe(false);
   const closed = new URL(workspacePageHref(subscription.href, { settings: null }), source);
   expect(closed.searchParams.has('entry_from')).toBe(false);
+});
+
+it('round-trips studio scenes and provider-qualified models while preserving the project and template overlay', () => {
+  const base = 'http://localhost/?page=cinema&scene=image-to-video&model=cloud%3Afilm%2Fv2&embed=1#project/film?t=8';
+  const current = readWorkspacePage(new URL(base).search);
+  expect(current.studio).toMatchObject({ scene: { id: 'image-to-video', modality: 'video' }, model: 'cloud:film/v2' });
+  const overlay = new URL(workspacePageHref(base, { templates: true }), base);
+  expect(readWorkspacePage(overlay.search)).toMatchObject({ studio: current.studio, templates: true });
+  expect(workspacePageHref(overlay.href, { templates: false })).toContain('model=cloud%3Afilm%2Fv2');
+  expect(workspacePageHref(base, { studio: null })).toBe('/?embed=1#project/film?t=8');
+  expect(workspacePageHref(base, { assets: true })).toBe('/?embed=1&page=assets#project/film?t=8');
+  expect(readWorkspacePage('?page=sound&scene=image-edit').studio?.scene.id).toBe('music');
+});
+
+it('round-trips every registered studio scene and resolves models in the current studio', () => {
+  const registered = new Set<string>();
+  for (const studio of creativeStudios) {
+    for (const scene of studio.scenes) {
+      const target = readWorkspacePage('?page=' + studio.id + '&scene=' + scene).studio!;
+      expect([target.studio.id, target.scene.id]).toEqual([studio.id, scene]);
+      const url = new URL(workspacePageHref('http://localhost/?page=explore', { studio: target }), 'http://localhost');
+      expect(readWorkspacePage(url.search).studio).toEqual(target);
+      registered.add(scene);
+    }
+  }
+  expect(registered).toEqual(new Set(studioScenes.map(scene => scene.id)));
+  const model: Model = { id: 'image:still', provider: 'image', modelId: 'still', label: 'Still', modality: 'image', mode: 'text-to-image', source: 'custom' };
+  expect(modelDestination(model, readWorkspacePage('?page=cinema').studio)).toMatchObject({ studio: { id: 'cinema' }, scene: { id: 'shot-image' } });
+  expect(modelDestination(model)).toMatchObject({ studio: { id: 'design' }, scene: { id: 'text-to-image' } });
+});
+
+it('carries the originating community through a standalone studio, direct reload and return', () => {
+  const source = 'http://localhost/?page=explore&community=3d-motion&medium=video#project/film?t=8';
+  const specialty = readWorkspacePage('?page=3d').specialty!;
+  const next = new URL(workspacePageHref(source, { specialty, skill: 'three-js' }), source);
+  expect(readWorkspacePage(next.search)).toMatchObject({ specialty, skill: 'three-js', community: '3d-motion', medium: 'video' });
+  expect(new URL(workspacePageHref(next.href, { explore: true }), source).href).toBe(source);
+  expect(readWorkspacePage('?page=3d&skill=unregistered&community=unknown&medium=text')).toMatchObject({ specialty, skill: null, community: null, medium: null });
+});
+
+it('opens a pinned asset without carrying its version or a studio scene into unrelated destinations', () => {
+  const source = 'http://localhost/?embed=1&page=cinema&scene=shot-image&model=registered#project/film';
+  const next = new URL(workspacePageHref(source, { assets: true, assetId: 'my-asset', assetVersion: 'older-version' }), source);
+  expect(readWorkspacePage(next.search)).toMatchObject({ assets: true, assetId: 'my-asset', assetVersion: 'older-version', studio: null });
+  expect(next.searchParams.has('scene')).toBe(false);
+  const settings = new URL(workspacePageHref(next.href, { settings: 'account' }), source);
+  expect(settings.searchParams.has('version')).toBe(false);
+  expect(settings.searchParams.has('asset')).toBe(false);
+  expect(settings.hash).toBe('#project/film');
+  expect(readWorkspacePage('?page=assets&version=orphan').assetVersion).toBeNull();
+});
+
+it('opens every scene on its registered surface and round-trips the selected model and Explore collection', () => {
+  const base = 'http://localhost/?page=explore&community=product-films&medium=image&embed=1#project/film?t=8';
+  for (const scene of studioScenes) {
+    const destination = sceneDestination(scene, null, 'provider:model/name');
+    const url = new URL(workspacePageHref(base, { studio: destination }), base);
+    expect(url.searchParams.get('page')).toBe(scene.entry === 'landing' ? 'create' : destination.studio.id);
+    expect(isWorkspaceSettingsPage(url.search)).toBe(true);
+    expect(readWorkspacePage(url.search).studio).toEqual(destination);
+    expect(workspacePageHref(url.href, { explore: true })).toBe('/?embed=1&page=explore&community=product-films&medium=image#project/film?t=8');
+  }
+  expect(isWorkspaceSettingsPage('?page=create&scene=missing')).toBe(false);
+  expect(readWorkspacePage('?page=create&scene=shot-image').studio).toBeNull();
+  expect(workspacePageHref('http://localhost/?page=create&scene=bad&model=bad', { assets: true })).toBe('/?page=assets');
+});
+
+it('restores each specialty brief, model overview and nested creator preview from their URLs', () => {
+  const origin = 'http://localhost/?page=explore&community=short-form#project/film';
+  const open = (url: string, patch: Parameters<typeof workspacePageHref>[1]) => new URL(workspacePageHref(url, patch), origin);
+  for (const entry of creativeStudios) {
+    if (entry.surface !== 'techniques') continue;
+    const href = open(origin, { specialty: entry, skill: entry.techniques[0] });
+    expect(isWorkspaceSettingsPage(href.search)).toBe(true);
+    expect(readWorkspacePage(href.search)).toMatchObject({ specialty: entry, skill: entry.techniques[0], community: 'short-form' });
+  }
+  const model = open(origin, { modelOverview: 'custom:provider/model' });
+  expect(isWorkspaceSettingsPage(model.search)).toBe(true);
+  expect(readWorkspacePage(model.search).modelOverview).toBe('custom:provider/model');
+  expect(open(model.href, { explore: true }).href).toBe(origin);
+  const directory = open(origin, { templates: true, creators: true });
+  const profile = open(directory.href, { creator: 'credit/Jane & Co' });
+  const detail = open(profile.href, { template: 'work-1' });
+  expect(readWorkspacePage(detail.search)).toMatchObject({ explore: true, creators: true, creator: 'credit/Jane & Co', template: 'work-1' });
+  expect(open(detail.href, { template: null }).href).toBe(profile.href);
+  expect(open(profile.href, { templates: false }).href).toBe(origin);
 });

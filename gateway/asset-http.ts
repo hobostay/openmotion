@@ -17,6 +17,7 @@ export async function assetHttp(req: IncomingMessage, res: ServerResponse, url: 
   if (url.pathname === '/api/assets/upload' && req.method === 'POST') {
     const name = decodeURIComponent(String(req.headers['x-file-name'] ?? ''));
     const requestId = url.searchParams.get('requestId') ?? '';
+    const expectedModality = url.searchParams.get('modality') === 'video' ? 'video' : undefined;
     if (!/^[\w-]{1,100}$/.test(requestId) || !name || name.length > 200) throw new Error('A filename and stable requestId are required');
     if (Number(req.headers['content-length']) > MAX_ASSET_BYTES) { res.writeHead(413); res.end(); return true; }
     await requireNativeRuntime(pluginRoot, 'media');
@@ -28,7 +29,7 @@ export async function assetHttp(req: IncomingMessage, res: ServerResponse, url: 
       await pipeline(req, new Transform({ transform(chunk, _encoding, callback) {
         size += chunk.length; callback(size > MAX_ASSET_BYTES ? new Error('Asset exceeds 500 MB') : null, chunk);
       } }), file.createWriteStream());
-      const asset = await library.importFile(filename, { requestId, name,
+      const asset = await library.importFile(filename, { requestId, name, expectedModality,
         assetId: url.searchParams.get('assetId') ?? undefined, parentVersionId: url.searchParams.get('parentVersionId') ?? undefined });
       res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ asset }));
     } finally { await rm(filename, { force: true }); }

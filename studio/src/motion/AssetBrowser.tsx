@@ -75,7 +75,7 @@ export function AssetBrowser({ kind, revision, active, ...actions }: BrowserActi
   const browser = useAssetBrowser({ kind, revision, active });
   return <AssetBrowserContent browser={browser} {...actions} />;
 }
-export function AssetBrowserContent({ browser, onOpen, onCreate, compact = false, selectedId, toolbar, hoverPreview = false }: BrowserActions & { browser: ReturnType<typeof useAssetBrowser>; toolbar?: ReactNode; hoverPreview?: boolean }) {
+export function AssetBrowserContent({ browser, onOpen, onCreate, compact = false, selectedId, toolbar, emptyContent, hoverPreview = false }: BrowserActions & { browser: ReturnType<typeof useAssetBrowser>; toolbar?: ReactNode; emptyContent?: ReactNode; hoverPreview?: boolean }) {
   const { t } = useI18n();
   const { kind, query, setQuery, source, setSource, sort, setSort, data, stale, loading, error, page, setPage, retry } = browser;
   const [previewId, setPreviewId] = useState<string>();
@@ -112,6 +112,7 @@ export function AssetBrowserContent({ browser, onOpen, onCreate, compact = false
     <div className="om-asset-results" aria-busy={loading} inert={stale && !error}>
       {error ? <div className="om-empty"><RemixIcon name="error-warning-line" size={32} /><p>{t('Could not load assets')}</p><button className="om-button" onClick={retry}>{t('Retry')}</button></div>
         : !data ? <div className="om-asset-grid">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="om-asset-loading-card" />)}</div>
+        : !data.assets.length && emptyContent && !query && source === 'all' ? emptyContent
         : !data?.assets.length && onCreate && !query && source === 'all' && kind !== 'trash' ? <div className="om-asset-welcome"><span className="om-creation-kicker">{t('YOUR NEXT CREATION STARTS HERE')}</span><h2 className="om-title">{t('One idea. Endless possibilities.')}</h2><p className="om-muted">{t('Upload your own media or create an image, video or audio asset.')}</p><div className="om-asset-starters">{creationKinds.filter(k => kind === 'all' || kind === k.id).map(item => <button className="om-creation-suggestion om-asset-starter" key={item.id} onClick={() => onCreate(item.id)}><CreationEmblem kind={item.id} /><strong>{t(item.title)}</strong><span className="om-muted">{t(item.hint)}</span><span className="om-asset-starter-action">{t(item.action)}<RemixIcon name="arrow-right-line" size={16} /></span></button>)}</div></div>
         : !data?.assets.length ? <div className="om-empty om-asset-empty"><RemixIcon name={kind === 'trash' ? 'delete-bin-line' : 'image-line'} size={40} /><h2 className="om-subtitle">{t(query || source !== 'all' ? 'No matching assets' : kind === 'trash' ? 'Trash is empty' : 'Your next idea starts here')}</h2><p className="om-muted">{t(kind === 'trash' ? 'Assets moved to trash can be restored.' : 'Upload your own media or create an image, video or audio asset.')}</p></div>
         : <><p className="om-muted">{t('{count} assets', { count: data.total })}</p><div className="om-asset-grid">{data.assets.map(asset => <div key={asset.id} className="om-asset-tile om-card"><button className="om-nav-item om-asset-open" onClick={() => onOpen(asset)} aria-label={asset.name} aria-current={selectedId === asset.id ? 'true' : undefined}
@@ -122,11 +123,11 @@ export function AssetBrowserContent({ browser, onOpen, onCreate, compact = false
     </div>
   </section>;
 }
-export function AssetPicker({ onClose, onPick, title = 'Choose an asset', confirmLabel = 'Use selected version', busyLabel = 'Working…', busy = false, revision = 0 }: { onClose: () => void; onPick: (reference: AssetReference, asset: LibraryAsset) => void; title?: string; confirmLabel?: string; busyLabel?: string; busy?: boolean; revision?: number }) {
-  const { t } = useI18n(), [kind, setKind] = useState<AssetKind>('all'), [selected, setSelected] = useState<LibraryAsset>(), [version, setVersion] = useState('');
+export function AssetPicker({ onClose, onPick, title = 'Choose an asset', confirmLabel = 'Use selected version', busyLabel = 'Working…', busy = false, revision = 0, imageOnly = false }: { imageOnly?: boolean; onClose: () => void; onPick: (reference: AssetReference, asset: LibraryAsset) => void; title?: string; confirmLabel?: string; busyLabel?: string; busy?: boolean; revision?: number }) {
+  const { t } = useI18n(), [kind, setKind] = useState<AssetKind>(imageOnly ? 'image' : 'all'), [selected, setSelected] = useState<LibraryAsset>(), [version, setVersion] = useState('');
   const pick = useCallback((asset: LibraryAsset) => { if (!busy) { setSelected(asset); setVersion(asset.currentVersionId); } }, [busy]);
   return <SettingsDialog title={t(title)} onClose={onClose}><div className="om-asset-picker">
-    <div className="om-asset-tabs">{assetKinds.map(item => <button key={item.id} className="om-nav-item" disabled={busy} aria-pressed={kind === item.id} onClick={() => setKind(item.id)}>{t(item.label)}</button>)}</div>
+    {!imageOnly && <div className="om-asset-tabs">{assetKinds.map(item => <button key={item.id} className="om-nav-item" disabled={busy} aria-pressed={kind === item.id} onClick={() => setKind(item.id)}>{t(item.label)}</button>)}</div>}
     <AssetBrowser kind={kind} onOpen={pick} revision={revision} />
     {selected && <div className="om-asset-picker-selection"><strong>{selected.name}</strong><Select disabled={busy} label={t('Version')} value={version} onCommit={setVersion} options={selected.versions.map((v, i) => ({ value: v.id, label: `V${i + 1}` }))} /><button className="om-button" data-primary disabled={busy} aria-busy={busy} onClick={() => onPick({ assetId: selected.id, versionId: version }, selected)}>{busy && <RemixIcon name="loader-4-line" size={16} className="animate-spin motion-reduce:animate-none" />}{t(busy ? busyLabel : confirmLabel)}</button></div>}
   </div></SettingsDialog>;

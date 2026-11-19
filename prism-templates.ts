@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { templatePage, templateWorkflow, type GalleryTemplate } from './shared/catalog.ts';
+import { isShortFormTemplate, templatePage, templateWorkflow, type GalleryTemplate } from './shared/catalog.ts';
 import { catalogLocale } from './shared/template-locale.ts';
 import { templateConfig } from './shared/template-config.ts';
 import { libraryTemplates, templateRecipe } from './template-catalog.ts';
@@ -207,9 +207,9 @@ export class TemplateCatalog {
     const skills = await this.skills(snapshot);
     const catalogVersion = snapshot.repository?.version ?? snapshot.hosted?.version ?? snapshot.publication.publicationId;
     // Skills change the index file, not the template catalog identity shared with gallery and detail.
-    const indexPath = path.join(this.directory, `templates.${hash(catalogVersion + (skills.length ? ':skills:' + hash(JSON.stringify(skills)) : '')).slice(0, 16)}.index.jsonl`);
+    const indexPath = path.join(this.directory, `templates.${hash('short-form-v1:' + catalogVersion + (skills.length ? ':skills:' + hash(JSON.stringify(skills)) : '')).slice(0, 16)}.index.jsonl`);
     const lines = [...items.map(item => ({ templateId: item.id, name: item.title, summary: item.description,
-      category: item.subtitle, tags: item.tags, durationSeconds: item.duration, kind: item.kind, localSource: item.localSource })), ...skills.map(({ instructions: _instructions, files: _files, ...skill }) => ({ ...skill, templateId: skill.id, name: skill.title, summary: skill.description }))].map(item => JSON.stringify(item)).join('\n') + '\n';
+      category: item.subtitle, tags: item.tags, durationSeconds: item.duration, shortForm: isShortFormTemplate(item) || undefined, kind: item.kind, localSource: item.localSource })), ...skills.map(({ instructions: _instructions, files: _files, ...skill }) => ({ ...skill, templateId: skill.id, name: skill.title, summary: skill.description }))].map(item => JSON.stringify(item)).join('\n') + '\n';
     await atomicWrite(indexPath, lines);
     return { indexPath, total: items.length, skillTotal: skills.length, catalogVersion, source: this.source, warning: this.warning };
   }

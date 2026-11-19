@@ -20,6 +20,7 @@ import { VERSION } from './preview.ts';
 import { templates } from './template-library.ts';
 import { templateRecipe } from './template-catalog.ts';
 import { templateCatalogFor } from './prism-templates.ts';
+import { upgradeTemplateGuidePage, compactNativeGuideStage, authoredTemplateGuide } from './shared/template-guide.ts';
 import { isEditableTemplate } from './shared/catalog.ts';
 import { proxyStudio, renderDownloadDisposition, serveEditorFile } from './editor-server.ts';
 import { publicTools as mcpTools } from './mcp.ts';
@@ -501,7 +502,7 @@ export async function handler(req: IncomingMessage, res: ServerResponse, store =
         const { error_code, invalid_field, validation_rule } = toolFailureFields(error);
         return json(res, 400, { error: message, ...(error_code !== 'TOOL_FAILED' ? { code: error_code } : {}),
           ...(invalid_field ? { invalid_field, validation_rule } : {}),
-          applied: message.startsWith('VERSION_NOT_RESTORABLE:') ? false : 'unknown' });
+          applied: (error as any)?.applied === false || message.startsWith('VERSION_NOT_RESTORABLE:') ? false : 'unknown' });
       }
     }
     if (req.method === 'GET' && ['/api/integration', '/connect/guide', '/connect/config'].includes(url.pathname)) {
@@ -634,8 +635,17 @@ export async function handler(req: IncomingMessage, res: ServerResponse, store =
       const mime: Record<string, string> = { '.html': 'text/html', '.md': 'text/plain', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.avif': 'image/avif', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.otf': 'font/otf', '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.webm': 'video/webm', '.m4v': 'video/mp4', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.m4a': 'audio/mp4', '.aac': 'audio/aac', '.flac': 'audio/flac' };
       const type = mime[path.extname(name).toLowerCase()] || 'application/octet-stream';
       try {
-        const bytes = await templateCatalogFor(store.directory).sourceFile(templateSource[1], name);
-        res.writeHead(200, { 'Content-Type': type, 'Content-Length': bytes.length }); res.end(bytes); return;
+        const catalog = templateCatalogFor(store.directory);
+        let bytes = await catalog.sourceFile(templateSource[1], name);
+        if (name === 'preview.html' && url.searchParams.get('raw') !== '1') {
+          const template = await catalog.get(templateSource[1]);
+          bytes = Buffer.from(upgradeTemplateGuidePage(bytes.toString(), { id: template.id, title: template.title, brand: template.brand,
+            sourceUrl: template.sourceUrl, previewUrl: template.previewUrl, posterUrl: template.posterUrl, hasHtmlProject: template.hasHtmlProject,
+            ...(!authoredTemplateGuide(bytes.toString()) ? { motionDocument: (await catalog.sourceFile(template.id, 'motion.md')).toString() } : {}) }));
+        }
+        else if (name === 'preview.html' && url.searchParams.get('stage') === '1') bytes = Buffer.from(compactNativeGuideStage(bytes.toString()));
+        res.writeHead(200, { 'Content-Type': type, 'Content-Length': bytes.length,
+          ...(name === 'motion.md' && url.searchParams.get('download') === '1' ? { 'Content-Disposition': 'attachment; filename="motion.md"' } : {}) }); res.end(bytes); return;
       } catch (error) {
         if ((error as { code?: string }).code === 'TEMPLATE_LFS_NOT_FETCHED')
           return json(res, 409, { code: 'TEMPLATE_LFS_NOT_FETCHED', error: (error as Error).message });

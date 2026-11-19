@@ -71,7 +71,7 @@ export function Tooltip({
           side={side}
           sideOffset={SIDE_OFFSET}
           collisionPadding={VIEWPORT_MARGIN}
-          className={POPUP_LAYER}
+          className={cn(POPUP_LAYER, "pointer-events-none")}
         >
           <BaseTooltip.Popup
             id={tooltipId}
