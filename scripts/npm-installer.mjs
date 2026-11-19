@@ -108,10 +108,6 @@ export async function setup(options) {
     assert(!plan.metadata.configFile || !['apps', 'cache', 'hosts'].some(name => contains(path.join(home, name), plan.metadata.configFile)), 'Keep host configuration outside managed application/cache/host directories');
     if (plan.layout !== 'deepseek') assert(!contains(dataDirectory, plan.skillsDirectory) && !contains(plan.skillsDirectory, dataDirectory)
       && !contains(plan.skillsDirectory, home) && !contains(home, plan.skillsDirectory), 'Keep user data, installed Skills and application/cache directories separate');
-    try {
-      const { recordInstallationStart } = await import(pathToFileURL(path.join(path.dirname(fileURLToPath(import.meta.url)), '../shared/install-attribution.ts')).href);
-      await recordInstallationStart(dataDirectory, plan.host, options.utmSource);
-    } catch (error) { console.error('OpenMotion: installation attribution unavailable: ' + error.message); }
     if (plan.layout === 'bundle') await checkSkillOwner(path.join(plan.skillsDirectory, 'openmotion-workflows'), home, plan.skillOwner || plan.host, plan.layout);
     const appRoot = path.join(home, 'apps', manifest.version + '-' + manifest.application.sha256.slice(0, 16));
     if (!await readJSON(path.join(appRoot, '.npm-install.json'))) {
@@ -143,6 +139,10 @@ export async function setup(options) {
     const installed = await readJSON(path.join(appRoot, '.npm-install.json'));
     assert.equal(installed.applicationSHA256, manifest.application.sha256, 'Installed application identity mismatch');
     assert.equal(JSON.stringify(installed.runtime), JSON.stringify(manifest.runtime), 'Native manifest changed for the same application; rebuild the application release');
+    const attribution = await import(pathToFileURL(path.join(appRoot, 'shared/install-attribution.ts')).href);
+    try {
+      await attribution.recordInstallationStart(dataDirectory, plan.host, options.utmSource);
+    } catch (error) { console.error('OpenMotion: installation attribution unavailable: ' + error.message); }
     const { prepareInstallationFlow, installationInstructions, persistInstallationOnboarding } = await import(pathToFileURL(path.join(appRoot, 'scripts/install-onboarding.mjs')).href);
     await installationInstructions(appRoot);
     const targets = await skillTargets(plan, appRoot), directories = [];
@@ -186,8 +186,7 @@ export async function setup(options) {
         });
       }
       try {
-        const { recordInstallation } = await import(pathToFileURL(path.join(appRoot, 'shared/install-attribution.ts')).href);
-        await recordInstallation(dataDirectory, plan.host, options.utmSource);
+        await attribution.recordInstallation(dataDirectory, plan.host, options.utmSource);
       } catch (error) { console.error('OpenMotion: installation attribution unavailable: ' + error.message); }
       return { ...state, publicSkill, host: plan.host, hostInstallation: plan.metadata, nativeDependencies: 'background-preparation; status and retry available in Studio',
         ...(plan.agentRegistration ? { agentRegistration: { ...plan.agentRegistration, instructions: agentRegistrationInstructions } } : {}), onboarding };
