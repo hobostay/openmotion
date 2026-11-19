@@ -164,11 +164,11 @@ export async function setup(options) {
         ...(plan.host === 'codex' ? { skillsDirectory: targets[0] } : {}) };
       // The registered MCP launcher must be usable even if Harness starts it synchronously.
       await writeJSON(stateFile, state); wroteState = true;
-      await plan.register();
       try {
         const { recordInstallationStart } = await import(pathToFileURL(path.join(appRoot, 'shared/install-attribution.ts')).href);
         await recordInstallationStart(dataDirectory, plan.host, options.utmSource);
       } catch (error) { console.error('OpenMotion: installation attribution unavailable: ' + error.message); }
+      await plan.register();
       try {
         const { recordInstallation } = await import(pathToFileURL(path.join(appRoot, 'shared/install-attribution.ts')).href);
         await recordInstallation(dataDirectory, plan.host, options.utmSource);
