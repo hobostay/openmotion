@@ -36,6 +36,11 @@ async function setupFixture(t: any) {
   for (const name of ['scripts', 'shared', 'studio/build', 'skills/openmotion-production', 'docs', 'mcp-ui/template-recommendations']) await mkdir(path.join(application, name), { recursive: true });
   for (const name of ['mcp.ts', 'scripts/npm-runtime.mjs', 'studio/build/index.html', 'README.md', 'AGENTS.md', 'CLAUDE.md']) await writeFile(path.join(application, name), 'fixture');
   for (const file of ['docs/install.md', 'scripts/install-onboarding.mjs', 'scripts/inline-onboarding.mjs', 'scripts/codex-host-handoff.mjs', 'scripts/check-installed-mcp.mjs', 'shared/onboarding-templates.ts', 'scripts/runtime-assets.mjs', 'scripts/open-template-library.ts', 'shared/workspace-url.ts', 'mcp-ui/template-recommendations/i18n.ts']) await cp(new URL('../' + file, import.meta.url), path.join(application, file));
+  for (const file of ['shared/install-attribution.ts', 'tracking/node.ts', 'tracking/core.ts', 'tracking/host.ts', 'tracking/device.ts', 'tracking/events.ts', 'tracking/tool-fields.ts', 'tracking/studio-events.ts']) {
+    await mkdir(path.join(application, path.dirname(file)), { recursive: true });
+    await cp(new URL('../' + file, import.meta.url), path.join(application, file));
+  }
+  await writeFile(path.join(application, 'shared/tracking.ts'), 'export function trackingLocked(){return false} export function trackingPreference(){return true} export async function createAppTracking(){return {track(){}}} export async function closeTracking(){}');
   await writeFile(path.join(application, 'workspace.ts'), 'export class WorkspaceStore { constructor(directory = process.env.MOTION_DATA_DIR) { this.directory = directory; } }');
   await writeFile(path.join(application, 'preview.ts'), `export async function ensureService(store) { if (store.directory !== process.env.MOTION_DATA_DIR) throw new Error('Wrong workspace'); return { previewUrl: 'http://127.0.0.1:4173' }; }`);
   await writeFile(path.join(application, 'skills/openmotion-production/SKILL.md'), '---\nname: openmotion-production\ndescription: fixture\n---\nFixture');
@@ -784,4 +789,19 @@ test('legacy Codex bundle migration preserves the old bundle on failed registrat
   await setup(options);
   await assert.rejects(readFile(path.join(legacy, 'scope.json')), { code: 'ENOENT' });
   assert.match(await readFile(path.join(target, 'skills/openmotion-production/SKILL.md'), 'utf8'), /openmotion-production/);
+});
+
+
+test('setup records an explicit attribution source and preserves it on untagged upgrades', async t => {
+  const options = await setupFixture(t);
+  await setup({ ...options, utmSource: 'producthunt' });
+  const read = async () => JSON.parse(await readFile(path.join(options.home, 'data/tracking/identity.json'), 'utf8'));
+  const first = await read();
+  assert.equal(first.utm_source, 'producthunt');
+  await setup(options);
+  assert.deepEqual(await read(), first);
+  await setup({ ...options, utmSource: 'partner' });
+  const updated = await read();
+  assert.equal(updated.utm_source, 'partner');
+  assert.equal(updated.installation_id, first.installation_id);
 });

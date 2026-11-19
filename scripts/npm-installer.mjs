@@ -33,6 +33,7 @@ Setup options:
   --host HOST        Registration adapters: ${hosts.join(', ')} (default: codex)
                      Any other Agent (for example opencode) gets the same application and Skills;
                      setup returns agentRegistration for that Agent to add to its own MCP configuration
+  --utm-source NAME  Optional installation source; omitted upgrades retain the existing source
   --home DIR         Managed application home; reuse for prepare and upgrades
   --data-dir DIR     Project data outside application/cache directories
   --skills-dir DIR   Skills root for Codex, Claude Code, WorkBuddy or another Agent (default for other Agents: ~/.agents/skills)
@@ -164,6 +165,10 @@ export async function setup(options) {
       // The registered MCP launcher must be usable even if Harness starts it synchronously.
       await writeJSON(stateFile, state); wroteState = true;
       await plan.register();
+      try {
+        const { recordInstallation } = await import(pathToFileURL(path.join(appRoot, 'shared/install-attribution.ts')).href);
+        await recordInstallation(dataDirectory, plan.host, options.utmSource);
+      } catch (error) { console.error('OpenMotion: installation attribution unavailable: ' + error.message); }
       if (plan.host === 'deepseek' && previous?.hosts?.deepseek?.bundleDirectory) {
         console.error('OpenMotion: previous Harness bundle retained at ' + previous.hosts.deepseek.bundleDirectory + '. Refresh host Tools/Skills; remove this old bundle only after the host has stopped.');
       }
@@ -276,7 +281,7 @@ export async function diagnose(options) {
 
 async function main() {
   const { positionals, values } = parseArgs({ allowPositionals: true, options: {
-    manifest: { type: 'string' }, home: { type: 'string' }, 'data-dir': { type: 'string' }, 'skills-dir': { type: 'string' }, host: { type: 'string' }, codex: { type: 'string' }, claude: { type: 'string' }, dsh: { type: 'string' }, profile: { type: 'string' },
+    manifest: { type: 'string' }, home: { type: 'string' }, 'data-dir': { type: 'string' }, 'skills-dir': { type: 'string' }, host: { type: 'string' }, codex: { type: 'string' }, claude: { type: 'string' }, dsh: { type: 'string' }, profile: { type: 'string' }, 'utm-source': { type: 'string' },
     help: { type: 'boolean', short: 'h' }, version: { type: 'boolean' }, output: { type: 'string' }, 'args-file': { type: 'string' }, 'onboarding-output': { type: 'string' },
   } });
   if (values.help) { console.log(usage); return; }
@@ -285,7 +290,7 @@ async function main() {
   assert(positionals.length === (command === 'call' ? 2 : 1), usage);
   if (command === 'setup') {
     try {
-      console.log(JSON.stringify(await setup({ manifest: values.manifest, home: values.home, dataDirectory: values['data-dir'], skillsDirectory: values['skills-dir'], host: values.host, codex: values.codex, claude: values.claude, dsh: values.dsh, profile: values.profile, onboardingOutput: values['onboarding-output'] }), null, 2));
+      console.log(JSON.stringify(await setup({ manifest: values.manifest, home: values.home, dataDirectory: values['data-dir'], skillsDirectory: values['skills-dir'], host: values.host, codex: values.codex, claude: values.claude, dsh: values.dsh, profile: values.profile, utmSource: values['utm-source'], onboardingOutput: values['onboarding-output'] }), null, 2));
     } catch (error) {
       const environment = (await readJSON(bundledManifest).catch(() => null))?.templateEnvironment;
       await recordDiagnostic(values.home || defaultHome(environment), { kind: 'installation_failed', message: error.message });

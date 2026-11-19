@@ -1,0 +1,15 @@
+name = "openmotion-install-guide"
+main = "index.ts"
+account_id = "64ad4569ffd912432d6b86d5656484c"
+compatibility_date = "2026-11-19"
+workers_dev = true
+
+[[r2_buckets]]
+binding = "RELEASES"
+bucket_name = "open-design-releases"
+
+# Enable the test route first; add the production route in the Cloudflare deployment
+# after the stable guide contains the attribution marker.
+[[routes]]
+pattern = "open-design.powerformer.net/motion/install.md*"
+zone_name = "powerformer.net"

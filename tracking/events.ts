@@ -72,6 +72,7 @@ const check = { check_id: 'uuid', check_type: ['technical_export', 'preview_obse
   project_id: 'code', version_id: 'code', subject_id: 'code', checklist_version: 'code', checker_type: ['automated', 'agent', 'user', 'host'] } as const;
 
 export const omEvents = {
+  installation_result: { producers: ['installer'], fields: { outcome: ['success'], host_product: ['codex', 'claude', 'deepseek', 'workbuddy', 'other'] }, required: ['outcome', 'host_product'] },
   ...studioUsageEvents,
   webmcp_tool_started: { producers: ['studio'], fields: { ...webMcp, ...toolDimensions, call_id: 'uuid' },
     required: ['tool_name', 'transport', 'call_id'] },
