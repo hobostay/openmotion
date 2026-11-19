@@ -108,6 +108,10 @@ export async function setup(options) {
     assert(!plan.metadata.configFile || !['apps', 'cache', 'hosts'].some(name => contains(path.join(home, name), plan.metadata.configFile)), 'Keep host configuration outside managed application/cache/host directories');
     if (plan.layout !== 'deepseek') assert(!contains(dataDirectory, plan.skillsDirectory) && !contains(plan.skillsDirectory, dataDirectory)
       && !contains(plan.skillsDirectory, home) && !contains(home, plan.skillsDirectory), 'Keep user data, installed Skills and application/cache directories separate');
+    try {
+      const { recordInstallationStart } = await import(pathToFileURL(path.join(path.dirname(fileURLToPath(import.meta.url)), '../shared/install-attribution.ts')).href);
+      await recordInstallationStart(dataDirectory, plan.host, options.utmSource);
+    } catch (error) { console.error('OpenMotion: installation attribution unavailable: ' + error.message); }
     if (plan.layout === 'bundle') await checkSkillOwner(path.join(plan.skillsDirectory, 'openmotion-workflows'), home, plan.skillOwner || plan.host, plan.layout);
     const appRoot = path.join(home, 'apps', manifest.version + '-' + manifest.application.sha256.slice(0, 16));
     if (!await readJSON(path.join(appRoot, '.npm-install.json'))) {
@@ -164,15 +168,7 @@ export async function setup(options) {
         ...(plan.host === 'codex' ? { skillsDirectory: targets[0] } : {}) };
       // The registered MCP launcher must be usable even if Harness starts it synchronously.
       await writeJSON(stateFile, state); wroteState = true;
-      try {
-        const { recordInstallationStart } = await import(pathToFileURL(path.join(appRoot, 'shared/install-attribution.ts')).href);
-        await recordInstallationStart(dataDirectory, plan.host, options.utmSource);
-      } catch (error) { console.error('OpenMotion: installation attribution unavailable: ' + error.message); }
       await plan.register();
-      try {
-        const { recordInstallation } = await import(pathToFileURL(path.join(appRoot, 'shared/install-attribution.ts')).href);
-        await recordInstallation(dataDirectory, plan.host, options.utmSource);
-      } catch (error) { console.error('OpenMotion: installation attribution unavailable: ' + error.message); }
       if (plan.host === 'deepseek' && previous?.hosts?.deepseek?.bundleDirectory) {
         console.error('OpenMotion: previous Harness bundle retained at ' + previous.hosts.deepseek.bundleDirectory + '. Refresh host Tools/Skills; remove this old bundle only after the host has stopped.');
       }
@@ -189,6 +185,10 @@ export async function setup(options) {
           return { status: 'failed', reason: error.message };
         });
       }
+      try {
+        const { recordInstallation } = await import(pathToFileURL(path.join(appRoot, 'shared/install-attribution.ts')).href);
+        await recordInstallation(dataDirectory, plan.host, options.utmSource);
+      } catch (error) { console.error('OpenMotion: installation attribution unavailable: ' + error.message); }
       return { ...state, publicSkill, host: plan.host, hostInstallation: plan.metadata, nativeDependencies: 'background-preparation; status and retry available in Studio',
         ...(plan.agentRegistration ? { agentRegistration: { ...plan.agentRegistration, instructions: agentRegistrationInstructions } } : {}), onboarding };
     } catch (error) {

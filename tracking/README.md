@@ -176,9 +176,11 @@ This measures OS-device identities, not people or immutable physical hardware. S
 machines count once, a person on two machines counts twice, cloned OS identifiers can
 collide, and an OS reinstall can change Windows/Linux identifiers. Device context contains
 no account identity, MAC address, raw platform identifier or probabilistic fingerprint. The package can
-initialize an identity with a validated source label; existing identities retain
-their first source. Landing-page attribution and installer `--source` plumbing are
-a separate change. Unknown source remains null.
+initialize an identity with a validated source label. The npm installer accepts
+`--utm-source NAME`: an explicit install updates the saved source, while an
+upgrade without the flag preserves the existing source. The installation ID
+remains unchanged across both operations, and an omitted source remains null for
+a new installation.
 
 Common fields include schema/product/app version, environment, entrypoint/runtime,
 platform/architecture, OS/version, runtime locale, device IANA timezone and UTC offset
@@ -318,6 +320,12 @@ backend/data directory. Deterministic coverage lives in
 - All registered phase-one stdio tools: accepted start and observed finish, including
   early-return catalog tools, the two negotiated presentation tools, input rejection,
   partial import and idempotent replay.
+- Installer acquisition boundaries: `installation_started` is emitted when setup
+  begins and `installation_result` only after registration, onboarding persistence
+  and Skill installation complete. Both events carry the selected `host_product`;
+  the result carries `outcome=success`. A rolled-back setup does not emit a success
+  result. The installer accepts `--utm-source`; explicit installs update the saved
+  source, untagged upgrades preserve it, and the installation ID stays stable.
 - All twenty-one page WebMCP tools: `webmcp_tool_started` and
   `webmcp_tool_finished`, correlated by a fresh `call_id` per invocation, with
   the public `tool_name`, `transport=webmcp`, observed `outcome` and bounded

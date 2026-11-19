@@ -22,3 +22,19 @@ test('install Worker keeps direct guides unchanged and annotates only supported 
   assert.match(text, /setup --host deepseek --utm-source producthunt --profile PROFILE/);
   assert.match(text, /`openmotion prepare`/);
 });
+
+test('install Worker maps public guide hosts to their stable and test objects', async () => {
+  const testHost = 'open-design' + '.powerformer.net';
+  const requested: string[] = [];
+  const env = { RELEASES: { async get(key: string) {
+    requested.push(key);
+    return { body: new Response(guide).body!, text: async () => guide, writeHttpMetadata() {} };
+  } } };
+  const stable = await worker.fetch(new Request('https://open-design.ai/motion/install.md'), env);
+  const testGuide = await worker.fetch(new Request(`https://${testHost}/motion/install.md`), env);
+  const unknown = await worker.fetch(new Request('https://unknown.example/motion/install.md'), env);
+  assert.equal(stable.status, 200);
+  assert.equal(testGuide.status, 200);
+  assert.equal(unknown.status, 404);
+  assert.deepEqual(requested, ['open-motion/install.md', 'open-motion/dev/install.md']);
+});
