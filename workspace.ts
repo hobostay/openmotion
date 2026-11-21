@@ -626,11 +626,13 @@ export class WorkspaceStore {
   private async reconcileInterruptedExportLocked(seen: ExportJob, tracking = this.tracking): Promise<{ job: ExportJob | null; reconciled: boolean }> {
     const job = await this.job(seen.id);
     if (!job || !interruptedExport(job)) return { job, reconciled: false };
+    // Keep the snapshot intact while a live worker is still reading it; its own cleanup removes it.
+    const removeSnapshot = job.state === 'pending' || !alive(job.workerPid);
     job.failureStage = Object.hasOwn(exportStages, job.stage ?? '') ? exportStages[job.stage as keyof typeof exportStages] : 'unknown';
     job.failureCode = job.expiresAt <= Date.now() ? 'EXPORT_DEADLINE_EXCEEDED' : 'EXPORT_WORKER_INTERRUPTED';
     job.state = 'failed'; job.error = '后台渲染已中断或超时，请重新导出'; job.terminalAt = Date.now(); job.observedOutcome = 'unknown';
     await this.saveJob(job);
-    await rm(this.snapshotDirectory(job.id), { recursive: true, force: true }).catch(() => {});
+    if (removeSnapshot) await rm(this.snapshotDirectory(job.id), { recursive: true, force: true }).catch(() => {});
     const ledger = await this.reconcileTask(job);
     trackExportResult(tracking, job);
     // Whichever caller owns this transition states the terminal evidence once, so a read never closes a task silently.

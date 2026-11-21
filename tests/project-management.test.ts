@@ -270,4 +270,14 @@ test('requestExport reconciles an interrupted previous export, removes its snaps
   assert.equal(secondLedger?.outcome, 'unknown');
   assert.equal(secondLedger?.error_code, 'EXPORT_DEADLINE_EXCEEDED');
   assert.ok(secondLedger?.terminal_at);
+
+  // 3. Deadline-expired running export with a live worker keeps its snapshot intact for the worker's own cleanup.
+  const claimedThird = await store.claimExport();
+  assert.equal(claimedThird?.id, third.id);
+  await store.saveJob({ ...claimedThird!, stage: 'rendering', expiresAt: Date.now() - 1, workerPid: process.pid });
+  await access(store.snapshotDirectory(third.id));
+  const status = await project.status(third.id);
+  assert.equal(status.exportJob?.state, 'failed');
+  assert.equal(status.exportJob?.failureCode, 'EXPORT_DEADLINE_EXCEEDED');
+  await access(store.snapshotDirectory(third.id));
 }));
